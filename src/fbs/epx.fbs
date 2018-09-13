@@ -1,0 +1,76 @@
+/**
+ * File   : epx.fbs
+ * License: MIT/X11
+ * Author : Dries Pauwels <2mjolk@gmail.com>
+ * Date   : Wed 05 Sep 2018 06:12
+ */
+
+namespace epx;
+
+enum io_t:ubyte { READ = 0, WRITE}
+
+struct span {
+  start:ulong;
+  end:ulong;
+}
+
+table command {
+  id:ubyte;
+  span:span;
+  writing:io_t;
+  value:[ubyte];
+}
+
+struct instance_id {
+  replica_id:ulong;
+  instance_id:ulong (key);
+}
+
+table instance_data {
+  command:command;
+  seq:ulong;
+  deps:[instance_id];
+}
+
+enum message_t:ubyte {
+  nack,
+  pre_accept,
+  pre_accept_ok,
+  pre_accept_reply,
+  accept,
+  accept_ok,
+  commit,
+  prepare,
+  prepare_ok
+}
+
+table message {
+  to:ushort;
+  ballot:ubyte;
+  instance_id:instance_id;
+  type:message_t;
+  data:instance_data;
+}
+
+table batch {
+  id:ulong;
+  messages:[message];
+}
+
+enum status:ubyte {
+  NONE = 0,
+  PRE_ACCEPTED,
+  ACCEPTED,
+  PREPARE,
+  COMMITTED,
+  EXECUTED
+}
+
+table instance {
+  id:instance_id;
+  ballot:ubyte;
+  status:status;
+  data:instance_data;
+}
+
+root_type message;
