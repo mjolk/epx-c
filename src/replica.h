@@ -7,13 +7,11 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include "instance.h"
 #include "llrb-interval/slist.h"
 #include "llrb-interval/llrb.h"
 #include "llrb-interval/llrb-interval.h"
 #include <err.h>
-
-struct instance_index;
-struct range_tree;
 
 SLL_HEAD(tickers, timer);
 struct replica {
@@ -32,4 +30,4 @@ struct timer {
     struct instance* instance;
 };
 
-struct instance* replica_find_instance(struct replica*, struct instance*);
+struct instance* find_instance(struct replica*, struct instance*);

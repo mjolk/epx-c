@@ -11,15 +11,7 @@
 #define ns(x) FLATBUFFERS_WRAP_NAMESPACE(epx, x) // Specified in the schema.
 
 void instance_data_from_buffer(struct message *m, const void *buffer) {
-    ns(command_table_t) command = ns(instance_data_command(buffer));
-    m->command->id = ns(command_id(command));
-    ns(span_struct_t) span = ns(command_span(command));
-    m->command->span.start = ns(span_start(span));
-    m->command->span.end = ns(span_end(span));
-    m->command->writing = ns(command_writing(command));
-    //TODO defend buffer overflow
-    size_t scp = sizeof(ns(command_value(command)));
-    memcpy(&m->command->value, ns(command_value(command)), scp);
+	command_from_buffer(m->command, buffer);
     m->seq = ns(instance_data_seq(buffer));
     ns(instance_id_vec_t) rdps = ns(instance_data_deps(buffer));
     size_t veclen = ns(instance_id_vec_len(rdps));
@@ -60,14 +52,7 @@ error:
 void instance_data_to_buffer(struct message *m, flatcc_builder_t *b) {
     ns(instance_data_start(b));
     if(m->command){
-        ns(command_start(b));
-        ns(command_id_add(b, m->command->id));
-        ns(command_span_create(b, m->command->span.start,
-                    m->command->span.end));
-        ns(command_writing_add(b, m->command->writing));
-        ns(command_value_create(b, m->command->value,
-                    sizeof(m->command->value)/sizeof(m->command->value[0])));
-        ns(command_end(b));
+        
     }
     ns(instance_data_seq_add(b, m->seq));
     ns(instance_data_deps_start(b));

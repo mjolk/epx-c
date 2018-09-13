@@ -55,7 +55,7 @@ void timer_set(struct timer *t ,int time_out) {
     t->elapsed = 0;
 }
 
-struct instance* replica_find_instance(struct replica *r, struct instance *i) {
+struct instance* find_instance(struct replica *r, struct instance *i) {
     return LLRB_FIND(instance_index, &r->index[i->id->replica_id], i);
 }
 

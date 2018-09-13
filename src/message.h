@@ -5,8 +5,6 @@
  * Date   : wo 12 sep 2018 16:06
  */
 
-#include "instance.h"
-#include "command.h"
 #include "fbs/epx_builder.h"
 
 enum message_type {

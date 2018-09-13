@@ -8,15 +8,14 @@
 #include "llrb-interval/llrb-interval.h"
 #include "llrb-interval/llrb.h"
 #include "llrb-interval/slist.h"
-#include "command.h"
 #include <stdint.h>
-#include "message.h"
+#include <stdlib.h>
 
 enum state {
     NONE,
     PRE_ACCEPTED,
     ACCEPTED,
-    PREPARE,
+    PREPARING,
     COMMITTED,
     EXECUTED
 } state;
@@ -29,6 +28,8 @@ struct instance_id {
 struct nptr {
     struct instance* sle_next;
 };
+
+struct timer;
 
 struct instance {
     struct instance_id deps[8];
