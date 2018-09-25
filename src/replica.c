@@ -7,7 +7,17 @@
 
 #include "replica.h"
 
-void replica_tick(struct replica *r) {
+struct replica* replica_init(){
+    struct replica *r = malloc(sizeof(struct replica));
+    if(r == 0) return 0;
+    r->running = 0;
+    r->crank = buf_init();
+    r->sink = buf_init();
+    r->exec = buf_init();
+    return r;
+}
+
+void tick(struct replica *r) {
     struct timer *c, *prev, *nxt;
     nxt = SLL_FIRST(&r->timers);
     if(!nxt) return;
@@ -17,7 +27,7 @@ void replica_tick(struct replica *r) {
         nxt = SLL_NEXT(nxt, next);
         int exec = (c->elapsed >= c->time_out);
         if(exec > 0 && c->instance->on) {
-           c->instance->on(c);
+            c->instance->on(c);
         }
         //recheck status since timer cfg might have changed
         if(exec > 0) {
@@ -36,26 +46,41 @@ void replica_tick(struct replica *r) {
     }
 }
 
-int replica_register_timer(struct replica *r, int time_out, struct instance *i) {
-    struct timer *timer;
-    if((timer = malloc(sizeof(struct timer))) == NULL)
-       return -1;
+int register_timer(struct replica *r, struct instance *i, int time_out) {
+    struct timer *timer = malloc(sizeof(struct timer));
+    if(timer == 0) return -1;
     timer->time_out = time_out;
+    timer->elapsed = 0;
     timer->instance = i;
     SLL_INSERT_HEAD(&r->timers, timer, next);
     return 0;
 }
 
-void timer_cancel(struct timer *t){
-    t->elapsed = t->time_out;
+int register_instance(struct replica *r, struct instance *i) {
+    int t = register_timer(r, i, 2);
+    if(t != 0) return -1;
+    LLRB_INSERT(instance_index, &r->index[i->key.replica_id], i);
+    return 0;
 }
 
-void timer_set(struct timer *t ,int time_out) {
-    t->time_out = time_out;
-    t->elapsed = 0;
+struct instance* find_instance(struct replica *r,
+        struct instance_id *instance_id) {
+    struct instance i = {
+        .start_key = instance_id->instance_id
+    };
+    return LLRB_FIND(instance_index, &r->index[instance_id->replica_id], &i);
 }
 
-struct instance* find_instance(struct replica *r, struct instance *i) {
-    return LLRB_FIND(instance_index, &r->index[i->id->replica_id], i);
+uint64_t sd_for_command(struct replica *r, struct command *c,
+        struct instance_id *ignore, struct seq_deps_probe *p) {
+    uint64_t mseq;
+    for(int rc = 0;rc < N;rc++) {
+        mseq = max_seq(mseq, seq_deps_for_command(&r->index[rc], c, ignore, p));
+    }
+    return 0;
+}
+
+uint64_t max_local(struct replica *r) {
+    return LLRB_MAX(instance_index, &r->index[r->id])->start_key;
 }
 

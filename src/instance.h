@@ -1,15 +1,13 @@
 /**
- * File   : instance.h
+ * File   : src/instance.h
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 06 sep 2018 03:42
  */
 
 #include "llrb-interval/llrb-interval.h"
-#include "llrb-interval/llrb.h"
 #include "llrb-interval/slist.h"
-#include <stdint.h>
-#include <stdlib.h>
+#include "message.h"
 
 enum state {
     NONE,
@@ -20,38 +18,58 @@ enum state {
     EXECUTED
 } state;
 
-struct instance_id {
-    size_t replica_id;
-    uint64_t instance_id;
+struct seq_deps_probe{
+    int updated;
+    struct dependency* deps[N];
 };
 
 struct nptr {
     struct instance* sle_next;
 };
 
-struct timer;
+struct timer {
+    SLL_ENTRY(timer) next;
+    int elapsed;
+    int time_out;
+    int paused;
+    struct instance* instance;
+};
 
 struct instance {
-    struct instance_id deps[8];
-    struct instance_id id;
+    struct dependency* deps[N];
+    struct instance_id key;
     uint8_t ballot;
     enum state status;
     struct command* command;
     uint64_t seq;
     struct replica* r;
-    uint64_t start;
-    uint64_t end;
+    uint64_t start_key;
+    uint64_t end_key;
     uint64_t max;
     struct nptr next;
     LLRB_ENTRY(instance) entry;
     void (*on)(struct timer*);
-    struct message* replies[16];
+    uint8_t pre_accept_oks;
+    uint8_t accept_oks;
+    uint8_t nacks;
+    uint8_t prepare_oks;
+    uint8_t equal;
 };
 
-SLL_HEAD(rg, instance);
-LLRB_HEAD(instance_index, instance);
-LLRB_HEAD(range_tree, instance);
-LLRB_PROTOTYPE(instance_index, instance, entry, intcmp);
-LLRB_PROTOTYPE(range_tree, instance, entry, intcmp);
+struct recovery_instance {
 
-void instance_update_deps(struct instance*, struct instance_id id);
+};
+
+SLL_HEAD(tickers, timer);
+LLRB_HEAD(instance_index, instance);
+LLRB_PROTOTYPE(instance_index, instance, entry, intcmp);
+
+uint64_t seq_deps_for_command(struct instance_index*, struct command*,
+        struct instance_id*, struct seq_deps_probe *p);
+struct instance *instance_from_message(struct message*);
+void instance_reset(struct instance*);
+int is_state(struct instance *i, uint8_t state);
+int is_initial_ballot(uint8_t ballot);
+int update_deps(struct dependency**, struct instance*);
+void timer_cancel(struct timer*);
+void timer_set(struct timer*, int);

@@ -30,22 +30,22 @@ __flatbuffers_build_scalar(flatbuffers_, epx_status, epx_status_enum_t)
 #define __epx_span_formal_args , uint64_t v0, uint64_t v1
 #define __epx_span_call_args , v0, v1
 static inline epx_span_t *epx_span_assign(epx_span_t *p, uint64_t v0, uint64_t v1)
-{ p->start = v0; p->end = v1;
+{ p->start_key = v0; p->end_key = v1;
   return p; }
 static inline epx_span_t *epx_span_copy(epx_span_t *p, const epx_span_t *p2)
-{ p->start = p2->start; p->end = p2->end;
+{ p->start_key = p2->start_key; p->end_key = p2->end_key;
   return p; }
 static inline epx_span_t *epx_span_assign_to_pe(epx_span_t *p, uint64_t v0, uint64_t v1)
-{ flatbuffers_uint64_assign_to_pe(&p->start, v0); flatbuffers_uint64_assign_to_pe(&p->end, v1);
+{ flatbuffers_uint64_assign_to_pe(&p->start_key, v0); flatbuffers_uint64_assign_to_pe(&p->end_key, v1);
   return p; }
 static inline epx_span_t *epx_span_copy_to_pe(epx_span_t *p, const epx_span_t *p2)
-{ flatbuffers_uint64_copy_to_pe(&p->start, &p2->start); flatbuffers_uint64_copy_to_pe(&p->end, &p2->end);
+{ flatbuffers_uint64_copy_to_pe(&p->start_key, &p2->start_key); flatbuffers_uint64_copy_to_pe(&p->end_key, &p2->end_key);
   return p; }
 static inline epx_span_t *epx_span_assign_from_pe(epx_span_t *p, uint64_t v0, uint64_t v1)
-{ flatbuffers_uint64_assign_from_pe(&p->start, v0); flatbuffers_uint64_assign_from_pe(&p->end, v1);
+{ flatbuffers_uint64_assign_from_pe(&p->start_key, v0); flatbuffers_uint64_assign_from_pe(&p->end_key, v1);
   return p; }
 static inline epx_span_t *epx_span_copy_from_pe(epx_span_t *p, const epx_span_t *p2)
-{ flatbuffers_uint64_copy_from_pe(&p->start, &p2->start); flatbuffers_uint64_copy_from_pe(&p->end, &p2->end);
+{ flatbuffers_uint64_copy_from_pe(&p->start_key, &p2->start_key); flatbuffers_uint64_copy_from_pe(&p->end_key, &p2->end_key);
   return p; }
 __flatbuffers_build_struct(flatbuffers_, epx_span, 16, 8, epx_span_identifier, epx_span_type_identifier)
 
@@ -70,6 +70,28 @@ static inline epx_instance_id_t *epx_instance_id_copy_from_pe(epx_instance_id_t 
 { flatbuffers_uint64_copy_from_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_from_pe(&p->instance_id, &p2->instance_id);
   return p; }
 __flatbuffers_build_struct(flatbuffers_, epx_instance_id, 16, 8, epx_instance_id_identifier, epx_instance_id_type_identifier)
+
+#define __epx_dependency_formal_args , uint64_t v0, uint64_t v1, uint8_t v2
+#define __epx_dependency_call_args , v0, v1, v2
+static inline epx_dependency_t *epx_dependency_assign(epx_dependency_t *p, uint64_t v0, uint64_t v1, uint8_t v2)
+{ p->replica_id = v0; p->instance_id = v1; p->committed = v2;
+  return p; }
+static inline epx_dependency_t *epx_dependency_copy(epx_dependency_t *p, const epx_dependency_t *p2)
+{ p->replica_id = p2->replica_id; p->instance_id = p2->instance_id; p->committed = p2->committed;
+  return p; }
+static inline epx_dependency_t *epx_dependency_assign_to_pe(epx_dependency_t *p, uint64_t v0, uint64_t v1, uint8_t v2)
+{ flatbuffers_uint64_assign_to_pe(&p->replica_id, v0); flatbuffers_uint64_assign_to_pe(&p->instance_id, v1); p->committed = v2;
+  return p; }
+static inline epx_dependency_t *epx_dependency_copy_to_pe(epx_dependency_t *p, const epx_dependency_t *p2)
+{ flatbuffers_uint64_copy_to_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_to_pe(&p->instance_id, &p2->instance_id); p->committed = p2->committed;
+  return p; }
+static inline epx_dependency_t *epx_dependency_assign_from_pe(epx_dependency_t *p, uint64_t v0, uint64_t v1, uint8_t v2)
+{ flatbuffers_uint64_assign_from_pe(&p->replica_id, v0); flatbuffers_uint64_assign_from_pe(&p->instance_id, v1); p->committed = v2;
+  return p; }
+static inline epx_dependency_t *epx_dependency_copy_from_pe(epx_dependency_t *p, const epx_dependency_t *p2)
+{ flatbuffers_uint64_copy_from_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_from_pe(&p->instance_id, &p2->instance_id); p->committed = p2->committed;
+  return p; }
+__flatbuffers_build_struct(flatbuffers_, epx_dependency, 24, 8, epx_dependency_identifier, epx_dependency_type_identifier)
 
 static const flatbuffers_voffset_t __epx_command_required[] = { 0 };
 typedef flatbuffers_ref_t epx_command_ref_t;
@@ -101,7 +123,7 @@ __flatbuffers_build_table(flatbuffers_, epx_instance, 4)
 static inline epx_command_ref_t epx_command_create(flatbuffers_builder_t *B __epx_command_formal_args);
 __flatbuffers_build_table_prolog(flatbuffers_, epx_command, epx_command_identifier, epx_command_type_identifier)
 
-#define __epx_instance_data_formal_args , epx_command_ref_t v0, uint64_t v1, epx_instance_id_vec_ref_t v2
+#define __epx_instance_data_formal_args , epx_command_ref_t v0, uint64_t v1, epx_dependency_vec_ref_t v2
 #define __epx_instance_data_call_args , v0, v1, v2
 static inline epx_instance_data_ref_t epx_instance_data_create(flatbuffers_builder_t *B __epx_instance_data_formal_args);
 __flatbuffers_build_table_prolog(flatbuffers_, epx_instance_data, epx_instance_data_identifier, epx_instance_data_type_identifier)
@@ -155,8 +177,7 @@ static epx_command_ref_t epx_command_clone(flatbuffers_builder_t *B, epx_command
 
 __flatbuffers_build_table_field(0, flatbuffers_, epx_instance_data_command, epx_command, epx_instance_data)
 __flatbuffers_build_scalar_field(1, flatbuffers_, epx_instance_data_seq, flatbuffers_uint64, uint64_t, 8, 8, UINT64_C(0), epx_instance_data)
-/* vector has keyed elements */
-__flatbuffers_build_vector_field(2, flatbuffers_, epx_instance_data_deps, epx_instance_id, epx_instance_id_t, epx_instance_data)
+__flatbuffers_build_vector_field(2, flatbuffers_, epx_instance_data_deps, epx_dependency, epx_dependency_t, epx_instance_data)
 
 static inline epx_instance_data_ref_t epx_instance_data_create(flatbuffers_builder_t *B __epx_instance_data_formal_args)
 {
@@ -238,16 +259,16 @@ static epx_batch_ref_t epx_batch_clone(flatbuffers_builder_t *B, epx_batch_table
     __flatbuffers_memoize_end(B, t, epx_batch_end(B));
 }
 
-__flatbuffers_build_struct_field(0, flatbuffers_, epx_instance_id, epx_instance_id, 16, 8, epx_instance)
+__flatbuffers_build_struct_field(0, flatbuffers_, epx_instance_key, epx_instance_id, 16, 8, epx_instance)
 __flatbuffers_build_scalar_field(1, flatbuffers_, epx_instance_ballot, flatbuffers_uint8, uint8_t, 1, 1, UINT8_C(0), epx_instance)
-__flatbuffers_build_scalar_field(2, flatbuffers_, epx_instance_status, epx_status, epx_status_enum_t, 1, 1, UINT8_C(0), epx_instance)
-__flatbuffers_build_table_field(3, flatbuffers_, epx_instance_data, epx_instance_data, epx_instance)
+__flatbuffers_build_scalar_field(2, flatbuffers_, epx_instance_status, epx_status, epx_status_enum_t, 1, 1, UINT8_C(1), epx_instance)
+__flatbuffers_build_table_field(3, flatbuffers_, epx_instance_idata, epx_instance_data, epx_instance)
 
 static inline epx_instance_ref_t epx_instance_create(flatbuffers_builder_t *B __epx_instance_formal_args)
 {
     if (epx_instance_start(B)
-        || epx_instance_id_add(B, v0)
-        || epx_instance_data_add(B, v3)
+        || epx_instance_key_add(B, v0)
+        || epx_instance_idata_add(B, v3)
         || epx_instance_ballot_add(B, v1)
         || epx_instance_status_add(B, v2)) {
         return 0;
@@ -259,8 +280,8 @@ static epx_instance_ref_t epx_instance_clone(flatbuffers_builder_t *B, epx_insta
 {
     __flatbuffers_memoize_begin(B, t);
     if (epx_instance_start(B)
-        || epx_instance_id_pick(B, t)
-        || epx_instance_data_pick(B, t)
+        || epx_instance_key_pick(B, t)
+        || epx_instance_idata_pick(B, t)
         || epx_instance_ballot_pick(B, t)
         || epx_instance_status_pick(B, t)) {
         return 0;

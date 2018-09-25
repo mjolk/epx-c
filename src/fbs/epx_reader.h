@@ -28,6 +28,11 @@ typedef const epx_instance_id_t *epx_instance_id_struct_t;
 typedef epx_instance_id_t *epx_instance_id_mutable_struct_t;
 typedef const epx_instance_id_t *epx_instance_id_vec_t;
 typedef epx_instance_id_t *epx_instance_id_mutable_vec_t;
+typedef struct epx_dependency epx_dependency_t;
+typedef const epx_dependency_t *epx_dependency_struct_t;
+typedef epx_dependency_t *epx_dependency_mutable_struct_t;
+typedef const epx_dependency_t *epx_dependency_vec_t;
+typedef epx_dependency_t *epx_dependency_mutable_vec_t;
 
 typedef const struct epx_command_table *epx_command_table_t;
 typedef const flatbuffers_uoffset_t *epx_command_vec_t;
@@ -59,6 +64,11 @@ typedef flatbuffers_uoffset_t *epx_instance_mutable_vec_t;
 #endif
 #define epx_instance_id_type_hash ((flatbuffers_thash_t)0xf802c71b)
 #define epx_instance_id_type_identifier "\x1b\xc7\x02\xf8"
+#ifndef epx_dependency_identifier
+#define epx_dependency_identifier flatbuffers_identifier
+#endif
+#define epx_dependency_type_hash ((flatbuffers_thash_t)0x61dca7b7)
+#define epx_dependency_type_identifier "\xb7\xa7\xdc\x61"
 #ifndef epx_instance_data_identifier
 #define epx_instance_data_identifier flatbuffers_identifier
 #endif
@@ -105,28 +115,34 @@ static inline int epx_io_t_is_known_value(epx_io_t_enum_t value)
 
 typedef uint8_t epx_message_t_enum_t;
 __flatbuffers_define_integer_type(epx_message_t, epx_message_t_enum_t, 8)
-#define epx_message_t_nack ((epx_message_t_enum_t)UINT8_C(0))
-#define epx_message_t_pre_accept ((epx_message_t_enum_t)UINT8_C(1))
-#define epx_message_t_pre_accept_ok ((epx_message_t_enum_t)UINT8_C(2))
-#define epx_message_t_pre_accept_reply ((epx_message_t_enum_t)UINT8_C(3))
-#define epx_message_t_accept ((epx_message_t_enum_t)UINT8_C(4))
-#define epx_message_t_accept_ok ((epx_message_t_enum_t)UINT8_C(5))
-#define epx_message_t_commit ((epx_message_t_enum_t)UINT8_C(6))
-#define epx_message_t_prepare ((epx_message_t_enum_t)UINT8_C(7))
-#define epx_message_t_prepare_ok ((epx_message_t_enum_t)UINT8_C(8))
+#define epx_message_t_NACK ((epx_message_t_enum_t)UINT8_C(0))
+#define epx_message_t_PHASE1 ((epx_message_t_enum_t)UINT8_C(1))
+#define epx_message_t_PRE_ACCEPT ((epx_message_t_enum_t)UINT8_C(2))
+#define epx_message_t_PRE_ACCEPT_OK ((epx_message_t_enum_t)UINT8_C(3))
+#define epx_message_t_PRE_ACCEPT_REPLY ((epx_message_t_enum_t)UINT8_C(4))
+#define epx_message_t_ACCEPT ((epx_message_t_enum_t)UINT8_C(5))
+#define epx_message_t_ACCEPT_REPLY ((epx_message_t_enum_t)UINT8_C(6))
+#define epx_message_t_ACCEPT_OK ((epx_message_t_enum_t)UINT8_C(7))
+#define epx_message_t_COMMIT ((epx_message_t_enum_t)UINT8_C(8))
+#define epx_message_t_PREPARE ((epx_message_t_enum_t)UINT8_C(9))
+#define epx_message_t_PREPARE_REPLY ((epx_message_t_enum_t)UINT8_C(10))
+#define epx_message_t_PREPARE_OK ((epx_message_t_enum_t)UINT8_C(11))
 
 static inline const char *epx_message_t_name(epx_message_t_enum_t value)
 {
     switch (value) {
-    case epx_message_t_nack: return "nack";
-    case epx_message_t_pre_accept: return "pre_accept";
-    case epx_message_t_pre_accept_ok: return "pre_accept_ok";
-    case epx_message_t_pre_accept_reply: return "pre_accept_reply";
-    case epx_message_t_accept: return "accept";
-    case epx_message_t_accept_ok: return "accept_ok";
-    case epx_message_t_commit: return "commit";
-    case epx_message_t_prepare: return "prepare";
-    case epx_message_t_prepare_ok: return "prepare_ok";
+    case epx_message_t_NACK: return "NACK";
+    case epx_message_t_PHASE1: return "PHASE1";
+    case epx_message_t_PRE_ACCEPT: return "PRE_ACCEPT";
+    case epx_message_t_PRE_ACCEPT_OK: return "PRE_ACCEPT_OK";
+    case epx_message_t_PRE_ACCEPT_REPLY: return "PRE_ACCEPT_REPLY";
+    case epx_message_t_ACCEPT: return "ACCEPT";
+    case epx_message_t_ACCEPT_REPLY: return "ACCEPT_REPLY";
+    case epx_message_t_ACCEPT_OK: return "ACCEPT_OK";
+    case epx_message_t_COMMIT: return "COMMIT";
+    case epx_message_t_PREPARE: return "PREPARE";
+    case epx_message_t_PREPARE_REPLY: return "PREPARE_REPLY";
+    case epx_message_t_PREPARE_OK: return "PREPARE_OK";
     default: return "";
     }
 }
@@ -134,27 +150,30 @@ static inline const char *epx_message_t_name(epx_message_t_enum_t value)
 static inline int epx_message_t_is_known_value(epx_message_t_enum_t value)
 {
     switch (value) {
-    case epx_message_t_nack: return 1;
-    case epx_message_t_pre_accept: return 1;
-    case epx_message_t_pre_accept_ok: return 1;
-    case epx_message_t_pre_accept_reply: return 1;
-    case epx_message_t_accept: return 1;
-    case epx_message_t_accept_ok: return 1;
-    case epx_message_t_commit: return 1;
-    case epx_message_t_prepare: return 1;
-    case epx_message_t_prepare_ok: return 1;
+    case epx_message_t_NACK: return 1;
+    case epx_message_t_PHASE1: return 1;
+    case epx_message_t_PRE_ACCEPT: return 1;
+    case epx_message_t_PRE_ACCEPT_OK: return 1;
+    case epx_message_t_PRE_ACCEPT_REPLY: return 1;
+    case epx_message_t_ACCEPT: return 1;
+    case epx_message_t_ACCEPT_REPLY: return 1;
+    case epx_message_t_ACCEPT_OK: return 1;
+    case epx_message_t_COMMIT: return 1;
+    case epx_message_t_PREPARE: return 1;
+    case epx_message_t_PREPARE_REPLY: return 1;
+    case epx_message_t_PREPARE_OK: return 1;
     default: return 0;
     }
 }
 
 typedef uint8_t epx_status_enum_t;
 __flatbuffers_define_integer_type(epx_status, epx_status_enum_t, 8)
-#define epx_status_NONE ((epx_status_enum_t)UINT8_C(0))
-#define epx_status_PRE_ACCEPTED ((epx_status_enum_t)UINT8_C(1))
-#define epx_status_ACCEPTED ((epx_status_enum_t)UINT8_C(2))
-#define epx_status_PREPARE ((epx_status_enum_t)UINT8_C(3))
-#define epx_status_COMMITTED ((epx_status_enum_t)UINT8_C(4))
-#define epx_status_EXECUTED ((epx_status_enum_t)UINT8_C(5))
+#define epx_status_NONE ((epx_status_enum_t)UINT8_C(1))
+#define epx_status_PRE_ACCEPTED ((epx_status_enum_t)UINT8_C(2))
+#define epx_status_ACCEPTED ((epx_status_enum_t)UINT8_C(4))
+#define epx_status_PREPARE ((epx_status_enum_t)UINT8_C(8))
+#define epx_status_COMMITTED ((epx_status_enum_t)UINT8_C(16))
+#define epx_status_EXECUTED ((epx_status_enum_t)UINT8_C(32))
 
 static inline const char *epx_status_name(epx_status_enum_t value)
 {
@@ -184,8 +203,8 @@ static inline int epx_status_is_known_value(epx_status_enum_t value)
 
 
 struct epx_span {
-    alignas(8) uint64_t start;
-    alignas(8) uint64_t end;
+    alignas(8) uint64_t start_key;
+    alignas(8) uint64_t end_key;
 };
 static_assert(sizeof(epx_span_t) == 16, "struct size mismatch");
 
@@ -198,8 +217,8 @@ static inline size_t epx_span_vec_len(epx_span_vec_t vec)
 __flatbuffers_vec_len(vec)
 __flatbuffers_struct_as_root(epx_span)
 
-__flatbuffers_define_struct_scalar_field(epx_span, start, flatbuffers_uint64, uint64_t)
-__flatbuffers_define_struct_scalar_field(epx_span, end, flatbuffers_uint64, uint64_t)
+__flatbuffers_define_struct_scalar_field(epx_span, start_key, flatbuffers_uint64, uint64_t)
+__flatbuffers_define_struct_scalar_field(epx_span, end_key, flatbuffers_uint64, uint64_t)
 
 struct epx_instance_id {
     alignas(8) uint64_t replica_id;
@@ -219,6 +238,26 @@ __flatbuffers_struct_as_root(epx_instance_id)
 __flatbuffers_define_struct_scalar_field(epx_instance_id, replica_id, flatbuffers_uint64, uint64_t)
 __flatbuffers_define_struct_scalar_field(epx_instance_id, instance_id, flatbuffers_uint64, uint64_t)
 /* Note: field has key, but there is no support for find by fields of this type. */
+
+struct epx_dependency {
+    alignas(8) uint64_t replica_id;
+    alignas(8) uint64_t instance_id;
+    alignas(1) uint8_t committed;
+};
+static_assert(sizeof(epx_dependency_t) == 24, "struct size mismatch");
+
+static inline const epx_dependency_t *epx_dependency__const_ptr_add(const epx_dependency_t *p, size_t i) { return p + i; }
+static inline epx_dependency_t *epx_dependency__ptr_add(epx_dependency_t *p, size_t i) { return p + i; }
+static inline epx_dependency_struct_t epx_dependency_vec_at(epx_dependency_vec_t vec, size_t i)
+__flatbuffers_struct_vec_at(vec, i)
+static inline size_t epx_dependency__size() { return 24; }
+static inline size_t epx_dependency_vec_len(epx_dependency_vec_t vec)
+__flatbuffers_vec_len(vec)
+__flatbuffers_struct_as_root(epx_dependency)
+
+__flatbuffers_define_struct_scalar_field(epx_dependency, replica_id, flatbuffers_uint64, uint64_t)
+__flatbuffers_define_struct_scalar_field(epx_dependency, instance_id, flatbuffers_uint64, uint64_t)
+__flatbuffers_define_struct_scalar_field(epx_dependency, committed, flatbuffers_uint8, uint8_t)
 
 
 struct epx_command_table { uint8_t unused__; };
@@ -244,7 +283,7 @@ __flatbuffers_table_as_root(epx_instance_data)
 
 __flatbuffers_define_table_field(0, epx_instance_data, command, epx_command_table_t, 0)
 __flatbuffers_define_scalar_field(1, epx_instance_data, seq, flatbuffers_uint64, uint64_t, UINT64_C(0))
-__flatbuffers_define_vector_field(2, epx_instance_data, deps, epx_instance_id_vec_t, 0)
+__flatbuffers_define_vector_field(2, epx_instance_data, deps, epx_dependency_vec_t, 0)
 
 struct epx_message_table { uint8_t unused__; };
 
@@ -279,10 +318,10 @@ static inline epx_instance_table_t epx_instance_vec_at(epx_instance_vec_t vec, s
 __flatbuffers_offset_vec_at(epx_instance_table_t, vec, i, 0)
 __flatbuffers_table_as_root(epx_instance)
 
-__flatbuffers_define_struct_field(0, epx_instance, id, epx_instance_id_struct_t, 0)
+__flatbuffers_define_struct_field(0, epx_instance, key, epx_instance_id_struct_t, 0)
 __flatbuffers_define_scalar_field(1, epx_instance, ballot, flatbuffers_uint8, uint8_t, UINT8_C(0))
-__flatbuffers_define_scalar_field(2, epx_instance, status, epx_status, epx_status_enum_t, UINT8_C(0))
-__flatbuffers_define_table_field(3, epx_instance, data, epx_instance_data_table_t, 0)
+__flatbuffers_define_scalar_field(2, epx_instance, status, epx_status, epx_status_enum_t, UINT8_C(1))
+__flatbuffers_define_table_field(3, epx_instance, idata, epx_instance_data_table_t, 0)
 
 #include "flatcc/flatcc_epilogue.h"
 #endif /* EPX_READER_H */

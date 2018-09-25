@@ -5,22 +5,22 @@
  * Date   : di 11 sep 2018 23:26
  */
 #include "message.h"
-#include "fbs/epx_reader.h"
 
-#undef ns
-#define ns(x) FLATBUFFERS_WRAP_NAMESPACE(epx, x) // Specified in the schema.
 
 void instance_data_from_buffer(struct message *m, const void *buffer) {
-	command_from_buffer(m->command, buffer);
+    command_from_buffer(m->command, buffer);
     m->seq = ns(instance_data_seq(buffer));
-    ns(instance_id_vec_t) rdps = ns(instance_data_deps(buffer));
-    size_t veclen = ns(instance_id_vec_len(rdps));
-    size_t len = (veclen > 8)?8:veclen;
+    ns(dependency_vec_t) rdps = ns(instance_data_deps(buffer));
+    size_t veclen = ns(dependency_vec_len(rdps));
+    size_t len = (veclen > N)?N:veclen;
     for(size_t i = 0; i < len; i++) {
-        ns(instance_id_struct_t) sid = ns(instance_id_vec_at(rdps, i));
-        struct instance_id ni = {.replica_id = ns(instance_id_replica_id(sid)),
-            .instance_id = ns(instance_id_instance_id(sid))};
-        m->deps[i] = ni;
+        ns(dependency_struct_t) sid = ns(dependency_vec_at(rdps, i));
+        struct instance_id ni = {.replica_id = ns(dependency_replica_id(sid)),
+            .instance_id = ns(dependency_instance_id(sid))};
+        struct dependency *dep = new_dependency();
+        dep->id = ni;
+        dep->committed = ns(dependency_committed(sid));
+        m->deps[i] = dep;
     }
 }
 
@@ -52,13 +52,14 @@ error:
 void instance_data_to_buffer(struct message *m, flatcc_builder_t *b) {
     ns(instance_data_start(b));
     if(m->command){
-        
+        command_to_buffer(m->command, b);
     }
     ns(instance_data_seq_add(b, m->seq));
     ns(instance_data_deps_start(b));
-    for(size_t i; i < 8; i++){
+    for(size_t i = 0; i < N; i++){
         ns(instance_data_deps_push_create(b,
-                    m->deps[i].replica_id, m->deps[i].instance_id));
+                    m->deps[i]->id.replica_id, m->deps[i]->id.instance_id,
+                    m->deps[i]->committed));
     }
     ns(instance_data_deps_end(b));
     ns(instance_data_end(b));
@@ -74,7 +75,6 @@ void message_to_buffer(struct message *m, flatcc_builder_t *b) {
     switch(m->type){
         case NACK:
         case PRE_ACCEPT_OK:
-        case ACCEPT_OK:
             break;
         default:
             instance_data_to_buffer(m, b);

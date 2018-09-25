@@ -1,5 +1,5 @@
 /**
- * File   : epx.fbs
+ * File   : src/fbs/epx.fbs
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : Wed 05 Sep 2018 06:12
@@ -10,8 +10,8 @@ namespace epx;
 enum io_t:ubyte { READ = 0, WRITE}
 
 struct span {
-  start:ulong;
-  end:ulong;
+  start_key:ulong;
+  end_key:ulong;
 }
 
 table command {
@@ -26,22 +26,31 @@ struct instance_id {
   instance_id:ulong (key);
 }
 
+struct dependency {
+  replica_id:ulong;
+  instance_id:ulong;
+  committed:ubyte;
+}
+
 table instance_data {
   command:command;
   seq:ulong;
-  deps:[instance_id];
+  deps:[dependency];
 }
 
 enum message_t:ubyte {
-  nack,
-  pre_accept,
-  pre_accept_ok,
-  pre_accept_reply,
-  accept,
-  accept_ok,
-  commit,
-  prepare,
-  prepare_ok
+  NACK,
+  PHASE1,
+  PRE_ACCEPT,
+  PRE_ACCEPT_OK,
+  PRE_ACCEPT_REPLY,
+  ACCEPT,
+  ACCEPT_REPLY,
+  ACCEPT_OK,
+  COMMIT,
+  PREPARE,
+  PREPARE_REPLY,
+  PREPARE_OK
 }
 
 table message {
@@ -57,7 +66,7 @@ table batch {
   messages:[message];
 }
 
-enum status:ubyte {
+enum status:ubyte (bit_flags){
   NONE = 0,
   PRE_ACCEPTED,
   ACCEPTED,
@@ -67,10 +76,10 @@ enum status:ubyte {
 }
 
 table instance {
-  id:instance_id;
+  key:instance_id;
   ballot:ubyte;
-  status:status;
-  data:instance_data;
+  status:status = NONE;
+  idata:instance_data;
 }
 
 root_type message;

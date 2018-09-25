@@ -5,17 +5,19 @@
  * Date   : wo 12 sep 2018 16:06
  */
 
-#include "fbs/epx_builder.h"
+#include "command.h"
 
 enum message_type {
     NACK,
+    PHASE1,
     PRE_ACCEPT,
     PRE_ACCEPT_OK,
     PRE_ACCEPT_REPLY,
     ACCEPT,
-    ACCEPT_OK,
+    ACCEPT_REPLY,
     COMMIT,
     PREPARE,
+    PREPARE_REPLY,
     PREPARE_OK
 };
 
@@ -26,7 +28,7 @@ struct message {
     struct instance_id id;
     struct command *command;
     uint64_t seq;
-    struct instance_id deps[8];
+    struct dependency* deps[N];
 };
 
 int message_from_buffer(struct message*, void*);

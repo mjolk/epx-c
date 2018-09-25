@@ -5,9 +5,11 @@
  * Date   : do 06 sep 2018 02:44
  */
 
-#include "include/epx.h"
+#include "epaxos.h"
 
-#undef ns
-#define ns(x) FLATBUFFERS_WRAP_NAMESPACE(epx, x)
+int main(void){
+    return 0;
+}
+
 
 

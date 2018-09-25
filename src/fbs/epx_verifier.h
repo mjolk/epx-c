@@ -55,6 +55,26 @@ static inline int epx_instance_id_verify_as_root_with_identifier(const void *buf
     return flatcc_verify_struct_as_root(buf, bufsiz, fid, 16, 8);
 }
 
+static inline int epx_dependency_verify_as_root(const void *buf, size_t bufsiz)
+{
+    return flatcc_verify_struct_as_root(buf, bufsiz, epx_dependency_identifier, 24, 8);
+}
+
+static inline int epx_dependency_verify_as_typed_root(const void *buf, size_t bufsiz)
+{
+    return flatcc_verify_struct_as_typed_root(buf, bufsiz, epx_dependency_type_hash, 24, 8);
+}
+
+static inline int epx_dependency_verify_as_root_with_type_hash(const void *buf, size_t bufsiz, flatbuffers_thash_t thash)
+{
+    return flatcc_verify_struct_as_typed_root(buf, bufsiz, thash, 24, 8);
+}
+
+static inline int epx_dependency_verify_as_root_with_identifier(const void *buf, size_t bufsiz, const char *fid)
+{
+    return flatcc_verify_struct_as_root(buf, bufsiz, fid, 24, 8);
+}
+
 static int epx_command_verify_table(flatcc_table_verifier_descriptor_t *td)
 {
     int ret;
@@ -90,7 +110,7 @@ static int epx_instance_data_verify_table(flatcc_table_verifier_descriptor_t *td
     int ret;
     if ((ret = flatcc_verify_table_field(td, 0, 0, &epx_command_verify_table) /* command */)) return ret;
     if ((ret = flatcc_verify_field(td, 1, 8, 8) /* seq */)) return ret;
-    if ((ret = flatcc_verify_vector_field(td, 2, 0, 16, 8, INT64_C(268435455)) /* deps */)) return ret;
+    if ((ret = flatcc_verify_vector_field(td, 2, 0, 24, 8, INT64_C(178956970)) /* deps */)) return ret;
     return flatcc_verify_ok;
 }
 
@@ -176,10 +196,10 @@ static inline int epx_batch_verify_as_root_with_type_hash(const void *buf, size_
 static int epx_instance_verify_table(flatcc_table_verifier_descriptor_t *td)
 {
     int ret;
-    if ((ret = flatcc_verify_field(td, 0, 16, 8) /* id */)) return ret;
+    if ((ret = flatcc_verify_field(td, 0, 16, 8) /* key */)) return ret;
     if ((ret = flatcc_verify_field(td, 1, 1, 1) /* ballot */)) return ret;
     if ((ret = flatcc_verify_field(td, 2, 1, 1) /* status */)) return ret;
-    if ((ret = flatcc_verify_table_field(td, 3, 0, &epx_instance_data_verify_table) /* data */)) return ret;
+    if ((ret = flatcc_verify_table_field(td, 3, 0, &epx_instance_data_verify_table) /* idata */)) return ret;
     return flatcc_verify_ok;
 }
 
