@@ -49,47 +49,47 @@ static inline epx_span_t *epx_span_copy_from_pe(epx_span_t *p, const epx_span_t 
   return p; }
 __flatbuffers_build_struct(flatbuffers_, epx_span, 16, 8, epx_span_identifier, epx_span_type_identifier)
 
-#define __epx_instance_id_formal_args , uint64_t v0, uint64_t v1
+#define __epx_instance_id_formal_args , uint16_t v0, uint64_t v1
 #define __epx_instance_id_call_args , v0, v1
-static inline epx_instance_id_t *epx_instance_id_assign(epx_instance_id_t *p, uint64_t v0, uint64_t v1)
+static inline epx_instance_id_t *epx_instance_id_assign(epx_instance_id_t *p, uint16_t v0, uint64_t v1)
 { p->replica_id = v0; p->instance_id = v1;
   return p; }
 static inline epx_instance_id_t *epx_instance_id_copy(epx_instance_id_t *p, const epx_instance_id_t *p2)
 { p->replica_id = p2->replica_id; p->instance_id = p2->instance_id;
   return p; }
-static inline epx_instance_id_t *epx_instance_id_assign_to_pe(epx_instance_id_t *p, uint64_t v0, uint64_t v1)
-{ flatbuffers_uint64_assign_to_pe(&p->replica_id, v0); flatbuffers_uint64_assign_to_pe(&p->instance_id, v1);
+static inline epx_instance_id_t *epx_instance_id_assign_to_pe(epx_instance_id_t *p, uint16_t v0, uint64_t v1)
+{ flatbuffers_uint16_assign_to_pe(&p->replica_id, v0); flatbuffers_uint64_assign_to_pe(&p->instance_id, v1);
   return p; }
 static inline epx_instance_id_t *epx_instance_id_copy_to_pe(epx_instance_id_t *p, const epx_instance_id_t *p2)
-{ flatbuffers_uint64_copy_to_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_to_pe(&p->instance_id, &p2->instance_id);
+{ flatbuffers_uint16_copy_to_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_to_pe(&p->instance_id, &p2->instance_id);
   return p; }
-static inline epx_instance_id_t *epx_instance_id_assign_from_pe(epx_instance_id_t *p, uint64_t v0, uint64_t v1)
-{ flatbuffers_uint64_assign_from_pe(&p->replica_id, v0); flatbuffers_uint64_assign_from_pe(&p->instance_id, v1);
+static inline epx_instance_id_t *epx_instance_id_assign_from_pe(epx_instance_id_t *p, uint16_t v0, uint64_t v1)
+{ flatbuffers_uint16_assign_from_pe(&p->replica_id, v0); flatbuffers_uint64_assign_from_pe(&p->instance_id, v1);
   return p; }
 static inline epx_instance_id_t *epx_instance_id_copy_from_pe(epx_instance_id_t *p, const epx_instance_id_t *p2)
-{ flatbuffers_uint64_copy_from_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_from_pe(&p->instance_id, &p2->instance_id);
+{ flatbuffers_uint16_copy_from_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_from_pe(&p->instance_id, &p2->instance_id);
   return p; }
 __flatbuffers_build_struct(flatbuffers_, epx_instance_id, 16, 8, epx_instance_id_identifier, epx_instance_id_type_identifier)
 
-#define __epx_dependency_formal_args , uint64_t v0, uint64_t v1, uint8_t v2
+#define __epx_dependency_formal_args , uint16_t v0, uint64_t v1, uint8_t v2
 #define __epx_dependency_call_args , v0, v1, v2
-static inline epx_dependency_t *epx_dependency_assign(epx_dependency_t *p, uint64_t v0, uint64_t v1, uint8_t v2)
+static inline epx_dependency_t *epx_dependency_assign(epx_dependency_t *p, uint16_t v0, uint64_t v1, uint8_t v2)
 { p->replica_id = v0; p->instance_id = v1; p->committed = v2;
   return p; }
 static inline epx_dependency_t *epx_dependency_copy(epx_dependency_t *p, const epx_dependency_t *p2)
 { p->replica_id = p2->replica_id; p->instance_id = p2->instance_id; p->committed = p2->committed;
   return p; }
-static inline epx_dependency_t *epx_dependency_assign_to_pe(epx_dependency_t *p, uint64_t v0, uint64_t v1, uint8_t v2)
-{ flatbuffers_uint64_assign_to_pe(&p->replica_id, v0); flatbuffers_uint64_assign_to_pe(&p->instance_id, v1); p->committed = v2;
+static inline epx_dependency_t *epx_dependency_assign_to_pe(epx_dependency_t *p, uint16_t v0, uint64_t v1, uint8_t v2)
+{ flatbuffers_uint16_assign_to_pe(&p->replica_id, v0); flatbuffers_uint64_assign_to_pe(&p->instance_id, v1); p->committed = v2;
   return p; }
 static inline epx_dependency_t *epx_dependency_copy_to_pe(epx_dependency_t *p, const epx_dependency_t *p2)
-{ flatbuffers_uint64_copy_to_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_to_pe(&p->instance_id, &p2->instance_id); p->committed = p2->committed;
+{ flatbuffers_uint16_copy_to_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_to_pe(&p->instance_id, &p2->instance_id); p->committed = p2->committed;
   return p; }
-static inline epx_dependency_t *epx_dependency_assign_from_pe(epx_dependency_t *p, uint64_t v0, uint64_t v1, uint8_t v2)
-{ flatbuffers_uint64_assign_from_pe(&p->replica_id, v0); flatbuffers_uint64_assign_from_pe(&p->instance_id, v1); p->committed = v2;
+static inline epx_dependency_t *epx_dependency_assign_from_pe(epx_dependency_t *p, uint16_t v0, uint64_t v1, uint8_t v2)
+{ flatbuffers_uint16_assign_from_pe(&p->replica_id, v0); flatbuffers_uint64_assign_from_pe(&p->instance_id, v1); p->committed = v2;
   return p; }
 static inline epx_dependency_t *epx_dependency_copy_from_pe(epx_dependency_t *p, const epx_dependency_t *p2)
-{ flatbuffers_uint64_copy_from_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_from_pe(&p->instance_id, &p2->instance_id); p->committed = p2->committed;
+{ flatbuffers_uint16_copy_from_pe(&p->replica_id, &p2->replica_id); flatbuffers_uint64_copy_from_pe(&p->instance_id, &p2->instance_id); p->committed = p2->committed;
   return p; }
 __flatbuffers_build_struct(flatbuffers_, epx_dependency, 24, 8, epx_dependency_identifier, epx_dependency_type_identifier)
 
@@ -106,7 +106,7 @@ __flatbuffers_build_table(flatbuffers_, epx_instance_data, 3)
 static const flatbuffers_voffset_t __epx_message_required[] = { 0 };
 typedef flatbuffers_ref_t epx_message_ref_t;
 static epx_message_ref_t epx_message_clone(flatbuffers_builder_t *B, epx_message_table_t t);
-__flatbuffers_build_table(flatbuffers_, epx_message, 5)
+__flatbuffers_build_table(flatbuffers_, epx_message, 6)
 
 static const flatbuffers_voffset_t __epx_batch_required[] = { 0 };
 typedef flatbuffers_ref_t epx_batch_ref_t;
@@ -129,9 +129,9 @@ static inline epx_instance_data_ref_t epx_instance_data_create(flatbuffers_build
 __flatbuffers_build_table_prolog(flatbuffers_, epx_instance_data, epx_instance_data_identifier, epx_instance_data_type_identifier)
 
 #define __epx_message_formal_args ,\
-  uint16_t v0, uint8_t v1, epx_instance_id_t *v2, epx_message_t_enum_t v3, epx_instance_data_ref_t v4
+  uint16_t v0, uint8_t v1, epx_instance_id_t *v2, epx_message_t_enum_t v3, epx_instance_data_ref_t v4, uint16_t v5
 #define __epx_message_call_args ,\
-  v0, v1, v2, v3, v4
+  v0, v1, v2, v3, v4, v5
 static inline epx_message_ref_t epx_message_create(flatbuffers_builder_t *B __epx_message_formal_args);
 __flatbuffers_build_table_prolog(flatbuffers_, epx_message, epx_message_identifier, epx_message_type_identifier)
 
@@ -207,6 +207,7 @@ __flatbuffers_build_scalar_field(1, flatbuffers_, epx_message_ballot, flatbuffer
 __flatbuffers_build_struct_field(2, flatbuffers_, epx_message_instance_id, epx_instance_id, 16, 8, epx_message)
 __flatbuffers_build_scalar_field(3, flatbuffers_, epx_message_type, epx_message_t, epx_message_t_enum_t, 1, 1, UINT8_C(0), epx_message)
 __flatbuffers_build_table_field(4, flatbuffers_, epx_message_data, epx_instance_data, epx_message)
+__flatbuffers_build_scalar_field(5, flatbuffers_, epx_message_reply_from, flatbuffers_uint16, uint16_t, 2, 2, UINT16_C(0), epx_message)
 
 static inline epx_message_ref_t epx_message_create(flatbuffers_builder_t *B __epx_message_formal_args)
 {
@@ -214,6 +215,7 @@ static inline epx_message_ref_t epx_message_create(flatbuffers_builder_t *B __ep
         || epx_message_instance_id_add(B, v2)
         || epx_message_data_add(B, v4)
         || epx_message_to_add(B, v0)
+        || epx_message_reply_from_add(B, v5)
         || epx_message_ballot_add(B, v1)
         || epx_message_type_add(B, v3)) {
         return 0;
@@ -228,6 +230,7 @@ static epx_message_ref_t epx_message_clone(flatbuffers_builder_t *B, epx_message
         || epx_message_instance_id_pick(B, t)
         || epx_message_data_pick(B, t)
         || epx_message_to_pick(B, t)
+        || epx_message_reply_from_pick(B, t)
         || epx_message_ballot_pick(B, t)
         || epx_message_type_pick(B, t)) {
         return 0;

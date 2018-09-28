@@ -6,17 +6,42 @@
  */
 
 #include "instance.h"
+#include "llrb-interval/llrb-interval.h"
 
-int is_state(struct instance *i, uint8_t state){
-    if((i->status & state) == state) return 1;
+int is_state(enum state state_a, enum state state_b){
+    if((state_a & state_b) == state_b) return 1;
     return 0;
 }
 
-int is_initial_ballot(uint8_t ballot) {
+uint8_t unique_ballot(uint8_t ballot, size_t replica_id){
+    return (ballot << 4) | replica_id;
+}
+
+uint8_t larger_ballot(uint8_t ballot, size_t replica_id){
+    return unique_ballot((ballot >> 4) +1, replica_id);
+}
+
+int is_initial_ballot(uint8_t ballot){
     return (ballot >> 4) == 0;
 }
 
-struct instance *instance_from_message(struct message *m) {
+size_t replica_from_ballot(uint8_t ballot){
+    return ballot & 15;
+}
+
+int equal_deps(struct dependency **deps1, struct dependency **deps2){
+    for(int i = 0; i < N; i++){
+        if(deps1[i]->id.instance_id != deps2[i]->id.instance_id){
+            return 0;
+        }
+        if(deps1[i]->committed != deps2[i]->committed){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+struct instance *instance_from_message(struct message *m){
     struct instance *i = malloc(sizeof(struct instance));
     if(i == 0) return 0;
     i->command = m->command;
@@ -27,6 +52,14 @@ struct instance *instance_from_message(struct message *m) {
     i->max = 0;
     i->status = NONE;
     return i;
+}
+
+void update_recovery_instance(struct recovery_instance *ri, struct message *m){
+    ri->command = m->command;
+    memcpy(ri->deps, m->deps,
+            sizeof(m->deps)/sizeof(m->deps[0]));
+    ri->seq = m->seq;
+    ri->status = m->instance_status;
 }
 
 int intcmp(struct instance *e1, struct instance *e2)
@@ -47,29 +80,38 @@ LLRB_GENERATE(span_tree, span, entry, spcmp)
 LLRB_RANGE_GROUP_GEN(span_tree, span, entry, span_group, next);
 
 
-int update_deps(struct dependency **deps, struct instance* i) {
+int update_deps(struct dependency **deps, struct dependency* d) {
     int updated = 0;
-    for(int dc = 0; dc < N;dc++){
-        if(deps[dc]->id.replica_id == i->key.replica_id &&
-                deps[dc]->id.instance_id <= i->key.instance_id){
-            deps[dc]->id = i->key;
-            deps[dc]->committed = (i->status >= COMMITTED);
-            updated = 1;
-        }
+    if(deps[d->id.replica_id] == 0){
+        struct dependency *ndep = new_dependency();
+        ndep->id = d->id;
+        ndep->committed = d->committed;
+        deps[d->id.replica_id] = ndep;
+        updated++;
+    } else if(deps[d->id.replica_id]->id.instance_id <= d->id.instance_id){
+        deps[d->id.replica_id]->id = d->id;
+        deps[d->id.replica_id]->committed = d->committed;
+        updated++;
     }
     return updated;
+}
+
+int add_dep(struct dependency **deps, struct instance *i){
+    struct dependency dep = {.id = i->key,
+        .committed = (i->status >= COMMITTED)};
+    return update_deps(deps, &dep);
 }
 
 void timer_cancel(struct timer *t){
     t->elapsed = t->time_out;
 }
 
-void timer_set(struct timer *t ,int time_out) {
+void timer_set(struct timer *t ,int time_out){
     t->time_out = time_out;
     t->elapsed = 0;
 }
 
-void merge(struct span *to_merge, struct span_group *sll) {
+void merge(struct span *to_merge, struct span_group *sll){
     struct span *c, *prev, *next;
     next = SLL_FIRST(sll);
     SLL_INSERT_HEAD(sll, to_merge, next);
@@ -93,7 +135,8 @@ void merge(struct span *to_merge, struct span_group *sll) {
     }
 }
 
-void delete_span_group() {
+//TODO check this shit, prolly segfaults
+void delete_span_group(){
     struct span *del;
     LLRB_FOREACH(del, span_tree, &rt) {
         LLRB_DELETE(span_tree, &rt, del);
@@ -102,7 +145,16 @@ void delete_span_group() {
 }
 
 int is_committed(struct instance *i){
-    return (i->status == EXECUTED || i->status == COMMITTED);
+    return (i->status == COMMITTED);
+}
+
+int has_uncommitted_deps(struct instance *i){
+    for(int dc = 0;dc < N;dc++){
+        if(i->deps[dc]->committed == 0){
+            return 1;
+        }
+    }
+    return 0;
 }
 
 uint64_t seq_deps_for_command(
@@ -128,14 +180,14 @@ uint64_t seq_deps_for_command(
             if(ti->command->writing) {
                 if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
                             &ti->command->span, &ml, &merge)){
-                    probe->updated = update_deps(probe->deps, ti);
+                    probe->updated = add_dep(probe->deps, ti);
                     if(!SLL_NEXT(SLL_FIRST(&ml), next) &&
-                            encloses(SLL_FIRST(&ml), &c->span)) {
+                            encloses(SLL_FIRST(&ml), &c->span)){
                         break;
                     }
                 }
-            } else if(!LLRB_RANGE_OVERLAPS(span_tree, &rt, &ti->command->span)) {
-                probe->updated = update_deps(probe->deps, ti);
+            } else if(!LLRB_RANGE_OVERLAPS(span_tree, &rt, &ti->command->span)){
+                probe->updated = add_dep(probe->deps, ti);
             }
         }
     }
@@ -143,13 +195,13 @@ uint64_t seq_deps_for_command(
     return mseq;
 }
 
-void instance_reset(struct instance *i) {
+void instance_reset(struct instance *i){
     for(int d = 0;d < N;d++){
         i->deps[d] = 0;
     }
-    i->accept_oks = 0;
-    i->prepare_oks = 0;
-    i->nacks = 0;
-    i->pre_accept_oks = 0;
-    i->equal = 0;
+    if(i->lt){
+        if(i->lt->ri){
+            free(i->lt->ri);
+        }
+    }
 }

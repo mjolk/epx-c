@@ -7,6 +7,17 @@
 
 #include "command.h"
 
+enum state {
+    NONE,
+    PRE_ACCEPTED,
+    PRE_ACCEPTED_EQ,
+    ACCEPTED,
+    PREPARING,
+    COMMITTED,
+    EXECUTED
+} state;
+
+
 enum message_type {
     NACK,
     PHASE1,
@@ -18,7 +29,8 @@ enum message_type {
     COMMIT,
     PREPARE,
     PREPARE_REPLY,
-    PREPARE_OK
+    TRY_PRE_ACCEPT,
+    TRY_PRE_ACCEPT_REPLY
 };
 
 struct message {
@@ -29,6 +41,8 @@ struct message {
     struct command *command;
     uint64_t seq;
     struct dependency* deps[N];
+    size_t from;
+    enum state instance_status;
 };
 
 int message_from_buffer(struct message*, void*);

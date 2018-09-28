@@ -221,7 +221,7 @@ __flatbuffers_define_struct_scalar_field(epx_span, start_key, flatbuffers_uint64
 __flatbuffers_define_struct_scalar_field(epx_span, end_key, flatbuffers_uint64, uint64_t)
 
 struct epx_instance_id {
-    alignas(8) uint64_t replica_id;
+    alignas(8) uint16_t replica_id;
     alignas(8) uint64_t instance_id;
 };
 static_assert(sizeof(epx_instance_id_t) == 16, "struct size mismatch");
@@ -235,12 +235,12 @@ static inline size_t epx_instance_id_vec_len(epx_instance_id_vec_t vec)
 __flatbuffers_vec_len(vec)
 __flatbuffers_struct_as_root(epx_instance_id)
 
-__flatbuffers_define_struct_scalar_field(epx_instance_id, replica_id, flatbuffers_uint64, uint64_t)
+__flatbuffers_define_struct_scalar_field(epx_instance_id, replica_id, flatbuffers_uint16, uint16_t)
 __flatbuffers_define_struct_scalar_field(epx_instance_id, instance_id, flatbuffers_uint64, uint64_t)
 /* Note: field has key, but there is no support for find by fields of this type. */
 
 struct epx_dependency {
-    alignas(8) uint64_t replica_id;
+    alignas(8) uint16_t replica_id;
     alignas(8) uint64_t instance_id;
     alignas(1) uint8_t committed;
 };
@@ -255,7 +255,7 @@ static inline size_t epx_dependency_vec_len(epx_dependency_vec_t vec)
 __flatbuffers_vec_len(vec)
 __flatbuffers_struct_as_root(epx_dependency)
 
-__flatbuffers_define_struct_scalar_field(epx_dependency, replica_id, flatbuffers_uint64, uint64_t)
+__flatbuffers_define_struct_scalar_field(epx_dependency, replica_id, flatbuffers_uint16, uint16_t)
 __flatbuffers_define_struct_scalar_field(epx_dependency, instance_id, flatbuffers_uint64, uint64_t)
 __flatbuffers_define_struct_scalar_field(epx_dependency, committed, flatbuffers_uint8, uint8_t)
 
@@ -298,6 +298,7 @@ __flatbuffers_define_scalar_field(1, epx_message, ballot, flatbuffers_uint8, uin
 __flatbuffers_define_struct_field(2, epx_message, instance_id, epx_instance_id_struct_t, 0)
 __flatbuffers_define_scalar_field(3, epx_message, type, epx_message_t, epx_message_t_enum_t, UINT8_C(0))
 __flatbuffers_define_table_field(4, epx_message, data, epx_instance_data_table_t, 0)
+__flatbuffers_define_scalar_field(5, epx_message, reply_from, flatbuffers_uint16, uint16_t, UINT16_C(0))
 
 struct epx_batch_table { uint8_t unused__; };
 

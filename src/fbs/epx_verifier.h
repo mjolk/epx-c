@@ -142,6 +142,7 @@ static int epx_message_verify_table(flatcc_table_verifier_descriptor_t *td)
     if ((ret = flatcc_verify_field(td, 2, 16, 8) /* instance_id */)) return ret;
     if ((ret = flatcc_verify_field(td, 3, 1, 1) /* type */)) return ret;
     if ((ret = flatcc_verify_table_field(td, 4, 0, &epx_instance_data_verify_table) /* data */)) return ret;
+    if ((ret = flatcc_verify_field(td, 5, 2, 2) /* reply_from */)) return ret;
     return flatcc_verify_ok;
 }
 

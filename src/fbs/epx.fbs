@@ -22,12 +22,12 @@ table command {
 }
 
 struct instance_id {
-  replica_id:ulong;
+  replica_id:ushort;
   instance_id:ulong (key);
 }
 
 struct dependency {
-  replica_id:ulong;
+  replica_id:ushort;
   instance_id:ulong;
   committed:ubyte;
 }
@@ -59,6 +59,7 @@ table message {
   instance_id:instance_id;
   type:message_t;
   data:instance_data;
+  reply_from:ushort;
 }
 
 table batch {
