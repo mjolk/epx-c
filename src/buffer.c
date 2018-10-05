@@ -9,10 +9,10 @@
 #include <stdio.h>
 #include <errno.h>
 
-struct cbuf* buf_init() {
+struct chan* chan_init() {
     int err = 0;
-    struct cbuf* b;
-    b = malloc(sizeof(struct cbuf));
+    struct chan* b;
+    b = malloc(sizeof(struct chan));
     if(b == 0) goto error;
     b->read = 0;
     b->write = 0;
@@ -28,7 +28,7 @@ error:
     return 0;
 }
 
-void send(struct cbuf* b, void *data){
+void send(struct chan* b, void *data){
     int err = 0;
     do
         err = sem_wait(&b->s_sem);
@@ -45,7 +45,7 @@ error:
     perror("error....");
 }
 
-void* recv(struct cbuf* b){
+void* recv(struct chan* b){
     int err = 0;
     void *result = NULL;
     do

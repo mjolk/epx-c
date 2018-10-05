@@ -15,26 +15,6 @@ static int epx_message_verify_table(flatcc_table_verifier_descriptor_t *td);
 static int epx_batch_verify_table(flatcc_table_verifier_descriptor_t *td);
 static int epx_instance_verify_table(flatcc_table_verifier_descriptor_t *td);
 
-static inline int epx_span_verify_as_root(const void *buf, size_t bufsiz)
-{
-    return flatcc_verify_struct_as_root(buf, bufsiz, epx_span_identifier, 16, 8);
-}
-
-static inline int epx_span_verify_as_typed_root(const void *buf, size_t bufsiz)
-{
-    return flatcc_verify_struct_as_typed_root(buf, bufsiz, epx_span_type_hash, 16, 8);
-}
-
-static inline int epx_span_verify_as_root_with_type_hash(const void *buf, size_t bufsiz, flatbuffers_thash_t thash)
-{
-    return flatcc_verify_struct_as_typed_root(buf, bufsiz, thash, 16, 8);
-}
-
-static inline int epx_span_verify_as_root_with_identifier(const void *buf, size_t bufsiz, const char *fid)
-{
-    return flatcc_verify_struct_as_root(buf, bufsiz, fid, 16, 8);
-}
-
 static inline int epx_instance_id_verify_as_root(const void *buf, size_t bufsiz)
 {
     return flatcc_verify_struct_as_root(buf, bufsiz, epx_instance_id_identifier, 16, 8);
@@ -79,9 +59,10 @@ static int epx_command_verify_table(flatcc_table_verifier_descriptor_t *td)
 {
     int ret;
     if ((ret = flatcc_verify_field(td, 0, 1, 1) /* id */)) return ret;
-    if ((ret = flatcc_verify_field(td, 1, 16, 8) /* span */)) return ret;
-    if ((ret = flatcc_verify_field(td, 2, 1, 1) /* writing */)) return ret;
-    if ((ret = flatcc_verify_vector_field(td, 3, 0, 1, 1, INT64_C(4294967295)) /* value */)) return ret;
+    if ((ret = flatcc_verify_string_field(td, 1, 0) /* start_key */)) return ret;
+    if ((ret = flatcc_verify_string_field(td, 2, 0) /* end_key */)) return ret;
+    if ((ret = flatcc_verify_field(td, 3, 1, 1) /* writing */)) return ret;
+    if ((ret = flatcc_verify_vector_field(td, 4, 0, 1, 1, INT64_C(4294967295)) /* value */)) return ret;
     return flatcc_verify_ok;
 }
 

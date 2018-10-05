@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-struct cbuf {
+struct chan {
     uint32_t read;
     uint32_t write;
     void* buffer[256];
@@ -21,6 +21,6 @@ struct cbuf {
 };
 
 
-struct cbuf* buf_init();
-void send(struct cbuf* buf, void *data);
-void* recv(struct cbuf* buf);
+struct chan* chan_init();
+void send(struct chan* buf, void *data);
+void* recv(struct chan* buf);

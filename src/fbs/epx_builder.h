@@ -27,28 +27,6 @@ __flatbuffers_build_scalar(flatbuffers_, epx_message_t, epx_message_t_enum_t)
 #define __epx_status_call_args , v0
 __flatbuffers_build_scalar(flatbuffers_, epx_status, epx_status_enum_t)
 
-#define __epx_span_formal_args , uint64_t v0, uint64_t v1
-#define __epx_span_call_args , v0, v1
-static inline epx_span_t *epx_span_assign(epx_span_t *p, uint64_t v0, uint64_t v1)
-{ p->start_key = v0; p->end_key = v1;
-  return p; }
-static inline epx_span_t *epx_span_copy(epx_span_t *p, const epx_span_t *p2)
-{ p->start_key = p2->start_key; p->end_key = p2->end_key;
-  return p; }
-static inline epx_span_t *epx_span_assign_to_pe(epx_span_t *p, uint64_t v0, uint64_t v1)
-{ flatbuffers_uint64_assign_to_pe(&p->start_key, v0); flatbuffers_uint64_assign_to_pe(&p->end_key, v1);
-  return p; }
-static inline epx_span_t *epx_span_copy_to_pe(epx_span_t *p, const epx_span_t *p2)
-{ flatbuffers_uint64_copy_to_pe(&p->start_key, &p2->start_key); flatbuffers_uint64_copy_to_pe(&p->end_key, &p2->end_key);
-  return p; }
-static inline epx_span_t *epx_span_assign_from_pe(epx_span_t *p, uint64_t v0, uint64_t v1)
-{ flatbuffers_uint64_assign_from_pe(&p->start_key, v0); flatbuffers_uint64_assign_from_pe(&p->end_key, v1);
-  return p; }
-static inline epx_span_t *epx_span_copy_from_pe(epx_span_t *p, const epx_span_t *p2)
-{ flatbuffers_uint64_copy_from_pe(&p->start_key, &p2->start_key); flatbuffers_uint64_copy_from_pe(&p->end_key, &p2->end_key);
-  return p; }
-__flatbuffers_build_struct(flatbuffers_, epx_span, 16, 8, epx_span_identifier, epx_span_type_identifier)
-
 #define __epx_instance_id_formal_args , uint16_t v0, uint64_t v1
 #define __epx_instance_id_call_args , v0, v1
 static inline epx_instance_id_t *epx_instance_id_assign(epx_instance_id_t *p, uint16_t v0, uint64_t v1)
@@ -96,7 +74,7 @@ __flatbuffers_build_struct(flatbuffers_, epx_dependency, 24, 8, epx_dependency_i
 static const flatbuffers_voffset_t __epx_command_required[] = { 0 };
 typedef flatbuffers_ref_t epx_command_ref_t;
 static epx_command_ref_t epx_command_clone(flatbuffers_builder_t *B, epx_command_table_t t);
-__flatbuffers_build_table(flatbuffers_, epx_command, 4)
+__flatbuffers_build_table(flatbuffers_, epx_command, 5)
 
 static const flatbuffers_voffset_t __epx_instance_data_required[] = { 0 };
 typedef flatbuffers_ref_t epx_instance_data_ref_t;
@@ -118,8 +96,10 @@ typedef flatbuffers_ref_t epx_instance_ref_t;
 static epx_instance_ref_t epx_instance_clone(flatbuffers_builder_t *B, epx_instance_table_t t);
 __flatbuffers_build_table(flatbuffers_, epx_instance, 4)
 
-#define __epx_command_formal_args , uint8_t v0, epx_span_t *v1, epx_io_t_enum_t v2, flatbuffers_uint8_vec_ref_t v3
-#define __epx_command_call_args , v0, v1, v2, v3
+#define __epx_command_formal_args ,\
+  uint8_t v0, flatbuffers_string_ref_t v1, flatbuffers_string_ref_t v2, epx_io_t_enum_t v3, flatbuffers_uint8_vec_ref_t v4
+#define __epx_command_call_args ,\
+  v0, v1, v2, v3, v4
 static inline epx_command_ref_t epx_command_create(flatbuffers_builder_t *B __epx_command_formal_args);
 __flatbuffers_build_table_prolog(flatbuffers_, epx_command, epx_command_identifier, epx_command_type_identifier)
 
@@ -146,17 +126,19 @@ static inline epx_instance_ref_t epx_instance_create(flatbuffers_builder_t *B __
 __flatbuffers_build_table_prolog(flatbuffers_, epx_instance, epx_instance_identifier, epx_instance_type_identifier)
 
 __flatbuffers_build_scalar_field(0, flatbuffers_, epx_command_id, flatbuffers_uint8, uint8_t, 1, 1, UINT8_C(0), epx_command)
-__flatbuffers_build_struct_field(1, flatbuffers_, epx_command_span, epx_span, 16, 8, epx_command)
-__flatbuffers_build_scalar_field(2, flatbuffers_, epx_command_writing, epx_io_t, epx_io_t_enum_t, 1, 1, UINT8_C(0), epx_command)
-__flatbuffers_build_vector_field(3, flatbuffers_, epx_command_value, flatbuffers_uint8, uint8_t, epx_command)
+__flatbuffers_build_string_field(1, flatbuffers_, epx_command_start_key, epx_command)
+__flatbuffers_build_string_field(2, flatbuffers_, epx_command_end_key, epx_command)
+__flatbuffers_build_scalar_field(3, flatbuffers_, epx_command_writing, epx_io_t, epx_io_t_enum_t, 1, 1, UINT8_C(0), epx_command)
+__flatbuffers_build_vector_field(4, flatbuffers_, epx_command_value, flatbuffers_uint8, uint8_t, epx_command)
 
 static inline epx_command_ref_t epx_command_create(flatbuffers_builder_t *B __epx_command_formal_args)
 {
     if (epx_command_start(B)
-        || epx_command_span_add(B, v1)
-        || epx_command_value_add(B, v3)
+        || epx_command_start_key_add(B, v1)
+        || epx_command_end_key_add(B, v2)
+        || epx_command_value_add(B, v4)
         || epx_command_id_add(B, v0)
-        || epx_command_writing_add(B, v2)) {
+        || epx_command_writing_add(B, v3)) {
         return 0;
     }
     return epx_command_end(B);
@@ -166,7 +148,8 @@ static epx_command_ref_t epx_command_clone(flatbuffers_builder_t *B, epx_command
 {
     __flatbuffers_memoize_begin(B, t);
     if (epx_command_start(B)
-        || epx_command_span_pick(B, t)
+        || epx_command_start_key_pick(B, t)
+        || epx_command_end_key_pick(B, t)
         || epx_command_value_pick(B, t)
         || epx_command_id_pick(B, t)
         || epx_command_writing_pick(B, t)) {

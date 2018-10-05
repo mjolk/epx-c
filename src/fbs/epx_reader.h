@@ -18,11 +18,6 @@
 #define flatbuffers_extension ".bin"
 #endif
 
-typedef struct epx_span epx_span_t;
-typedef const epx_span_t *epx_span_struct_t;
-typedef epx_span_t *epx_span_mutable_struct_t;
-typedef const epx_span_t *epx_span_vec_t;
-typedef epx_span_t *epx_span_mutable_vec_t;
 typedef struct epx_instance_id epx_instance_id_t;
 typedef const epx_instance_id_t *epx_instance_id_struct_t;
 typedef epx_instance_id_t *epx_instance_id_mutable_struct_t;
@@ -49,11 +44,6 @@ typedef flatbuffers_uoffset_t *epx_batch_mutable_vec_t;
 typedef const struct epx_instance_table *epx_instance_table_t;
 typedef const flatbuffers_uoffset_t *epx_instance_vec_t;
 typedef flatbuffers_uoffset_t *epx_instance_mutable_vec_t;
-#ifndef epx_span_identifier
-#define epx_span_identifier flatbuffers_identifier
-#endif
-#define epx_span_type_hash ((flatbuffers_thash_t)0xa2695682)
-#define epx_span_type_identifier "\x82\x56\x69\xa2"
 #ifndef epx_command_identifier
 #define epx_command_identifier flatbuffers_identifier
 #endif
@@ -202,24 +192,6 @@ static inline int epx_status_is_known_value(epx_status_enum_t value)
 }
 
 
-struct epx_span {
-    alignas(8) uint64_t start_key;
-    alignas(8) uint64_t end_key;
-};
-static_assert(sizeof(epx_span_t) == 16, "struct size mismatch");
-
-static inline const epx_span_t *epx_span__const_ptr_add(const epx_span_t *p, size_t i) { return p + i; }
-static inline epx_span_t *epx_span__ptr_add(epx_span_t *p, size_t i) { return p + i; }
-static inline epx_span_struct_t epx_span_vec_at(epx_span_vec_t vec, size_t i)
-__flatbuffers_struct_vec_at(vec, i)
-static inline size_t epx_span__size() { return 16; }
-static inline size_t epx_span_vec_len(epx_span_vec_t vec)
-__flatbuffers_vec_len(vec)
-__flatbuffers_struct_as_root(epx_span)
-
-__flatbuffers_define_struct_scalar_field(epx_span, start_key, flatbuffers_uint64, uint64_t)
-__flatbuffers_define_struct_scalar_field(epx_span, end_key, flatbuffers_uint64, uint64_t)
-
 struct epx_instance_id {
     alignas(8) uint16_t replica_id;
     alignas(8) uint64_t instance_id;
@@ -269,9 +241,10 @@ __flatbuffers_offset_vec_at(epx_command_table_t, vec, i, 0)
 __flatbuffers_table_as_root(epx_command)
 
 __flatbuffers_define_scalar_field(0, epx_command, id, flatbuffers_uint8, uint8_t, UINT8_C(0))
-__flatbuffers_define_struct_field(1, epx_command, span, epx_span_struct_t, 0)
-__flatbuffers_define_scalar_field(2, epx_command, writing, epx_io_t, epx_io_t_enum_t, UINT8_C(0))
-__flatbuffers_define_vector_field(3, epx_command, value, flatbuffers_uint8_vec_t, 0)
+__flatbuffers_define_string_field(1, epx_command, start_key, 0)
+__flatbuffers_define_string_field(2, epx_command, end_key, 0)
+__flatbuffers_define_scalar_field(3, epx_command, writing, epx_io_t, epx_io_t_enum_t, UINT8_C(0))
+__flatbuffers_define_vector_field(4, epx_command, value, flatbuffers_uint8_vec_t, 0)
 
 struct epx_instance_data_table { uint8_t unused__; };
 

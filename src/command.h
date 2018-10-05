@@ -10,28 +10,29 @@
 #define ns(x) FLATBUFFERS_WRAP_NAMESPACE(epx, x) // Specified in the schema.
 
 enum io_t {
-	READ,
-	WRITE
+    READ,
+    WRITE
 };
 
-struct nr {
-    struct span* sle_next;
+struct nxt {
+    struct span *sle_next;
 };
+
 struct range_group *merge_list;
 
 struct span {
     LLRB_ENTRY(span) entry;
-	uint64_t start_key;
-	uint64_t end_key;
-    uint64_t max;
-    struct nr next;
+    char start_key[KEY_SIZE+1];
+    char end_key[KEY_SIZE+1];
+    char max[KEY_SIZE+1];
+    struct nxt next;
 };
 
 struct command {
-	struct span span;
-	int id;
-	enum io_t writing;
-	uint8_t value[VSIZE];
+    struct span span;
+    int id;
+    enum io_t writing;
+    uint8_t value[VALUE_SIZE];
 };
 
 void command_from_buffer(struct command*, const void*);

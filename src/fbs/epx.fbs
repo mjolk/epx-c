@@ -1,5 +1,5 @@
 /**
- * File   : src/fbs/epx.fbs
+ * File   : epx.fbs
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : Wed 05 Sep 2018 06:12
@@ -9,14 +9,10 @@ namespace epx;
 
 enum io_t:ubyte { READ = 0, WRITE}
 
-struct span {
-  start_key:ulong;
-  end_key:ulong;
-}
-
 table command {
   id:ubyte;
-  span:span;
+  start_key:string;
+  end_key:string;
   writing:io_t;
   value:[ubyte];
 }

@@ -16,12 +16,9 @@ void instance_data_from_buffer(struct message *m, const void *buffer){
     size_t len = (veclen > N)?N:veclen;
     for(size_t i = 0; i < len; i++){
         ns(dependency_struct_t) sid = ns(dependency_vec_at(rdps, i));
-        struct instance_id ni = {.replica_id = ns(dependency_replica_id(sid)),
-            .instance_id = ns(dependency_instance_id(sid))};
-        struct dependency *dep = new_dependency();
-        dep->id = ni;
-        dep->committed = ns(dependency_committed(sid));
-        m->deps[i] = dep;
+        m->deps[i].id.instance_id = ns(dependency_instance_id(sid));
+        m->deps[i].id.replica_id = ns(dependency_replica_id(sid));
+        m->deps[i].committed = ns(dependency_committed(sid));
     }
 }
 
@@ -59,8 +56,8 @@ void instance_data_to_buffer(struct message *m, flatcc_builder_t *b){
     ns(instance_data_deps_start(b));
     for(size_t i = 0; i < N; i++){
         ns(instance_data_deps_push_create(b,
-                    m->deps[i]->id.replica_id, m->deps[i]->id.instance_id,
-                    m->deps[i]->committed));
+                    m->deps[i].id.replica_id, m->deps[i].id.instance_id,
+                    m->deps[i].committed));
     }
     ns(instance_data_deps_end(b));
     ns(instance_data_end(b));

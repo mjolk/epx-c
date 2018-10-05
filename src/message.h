@@ -13,6 +13,7 @@ enum state {
     PRE_ACCEPTED_EQ,
     ACCEPTED,
     PREPARING,
+    TRY_PRE_ACCEPTING,
     COMMITTED,
     EXECUTED
 } state;
@@ -40,7 +41,7 @@ struct message {
     struct instance_id id;
     struct command *command;
     uint64_t seq;
-    struct dependency* deps[N];
+    struct dependency deps[N];
     size_t from;
     enum state instance_status;
 };

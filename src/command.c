@@ -6,13 +6,17 @@
  */
 
 #include "command.h"
+#include "fbs/flatbuffers_common_reader.h"
 
 void command_from_buffer(struct command *c, const void *buffer) {
     ns(command_table_t) command = ns(instance_data_command(buffer));
     c->id = ns(command_id(command));
-    ns(span_struct_t) span = ns(command_span(command));
-    c->span.start_key = ns(span_start_key(span));
-    c->span.end_key = ns(span_end_key(span));
+    flatbuffers_string_t start = ns(command_start_key(command));
+    //TODO defend overflow
+    strncpy(c->span.start_key, start, flatbuffers_string_len(start));
+    flatbuffers_string_t end = ns(command_end_key(command));
+    //TODO defend overflow
+    strncpy(c->span.end_key, end, flatbuffers_string_len(end));
     c->writing = ns(command_writing(command));
     //TODO defend buffer overflow
     size_t scp = sizeof(ns(command_value(command)));
@@ -22,8 +26,8 @@ void command_from_buffer(struct command *c, const void *buffer) {
 void command_to_buffer(struct command *c, flatcc_builder_t *b) {
     ns(command_start(b));
     ns(command_id_add(b, c->id));
-    ns(command_span_create(b, c->span.start_key,
-                c->span.end_key));
+    ns(command_start_key_create_str(b, c->span.start_key));
+    ns(command_end_key_create_str(b, c->span.end_key));
     ns(command_writing_add(b, c->writing));
     ns(command_value_create(b, c->value,
                 sizeof(c->value)));
@@ -38,11 +42,11 @@ struct command* new_command() {
 }
 
 int overlaps(struct span *s1, struct span *s2){
-    return ((s1->start_key <= s2->end_key) && (s1->end_key >= s2->start_key));
+    return (strncmp(s1->start_key, s2->end_key, KEY_SIZE) <= 0)&& (strncmp(s1->end_key, s2->start_key, KEY_SIZE) >= 0);
 }
 
 int encloses(struct span *s1, struct span *s2){
-    return ((s1->start_key <= s2->start_key) && (s1->end_key >= s2->end_key));
+    return (strncmp(s1->start_key, s2->start_key, KEY_SIZE) <= 0) && (strncmp(s1->end_key, s2->end_key, KEY_SIZE) >= 0);
 }
 
 int interferes(struct command *c1, struct command *c2) {
