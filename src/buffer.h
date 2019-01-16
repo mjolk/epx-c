@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-struct chan {
+typedef struct chan {
     uint32_t read;
     uint32_t write;
     void* buffer[256];
@@ -18,9 +18,9 @@ struct chan {
     pthread_mutex_t lock;
     sem_t c_sem;
     sem_t s_sem;
-};
+} chan;
 
 
-struct chan* chan_init();
+int chan_init(struct chan*);
 void send(struct chan* buf, void *data);
 void* recv(struct chan* buf);

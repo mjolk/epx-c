@@ -5,8 +5,6 @@
  * Date   : do 13 sep 2018 23:22
  */
 
-#include <stdint.h>
-#include <stdlib.h>
 #include "fbs/epx_reader.h"
 #include "fbs/epx_builder.h"
 
@@ -24,10 +22,6 @@ struct dependency{
     uint8_t committed;
 };
 
-int is_instance_id(struct instance_id *a, struct instance_id *b){
-    return (a->instance_id == b->instance_id) && (a->replica_id == b->replica_id);
-}
+int is_instance_id(struct instance_id*, struct instance_id*);
 
-uint64_t max_seq(uint64_t a, uint64_t b){
-    return (a > b)?a:b;
-}
+uint64_t max_seq(uint64_t a, uint64_t b);

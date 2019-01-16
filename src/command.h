@@ -35,7 +35,7 @@ struct command {
     uint8_t value[VALUE_SIZE];
 };
 
-void command_from_buffer(struct command*, const void*);
+int command_from_buffer(struct command*, const void*);
 void command_to_buffer(struct command*, flatcc_builder_t*);
 int overlaps(struct span*, struct span*);
 int encloses(struct span*, struct span*);

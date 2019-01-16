@@ -1,5 +1,5 @@
 /**
- * File   : epx.fbs
+ * File   : src/fbs/epx.fbs
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : Wed 05 Sep 2018 06:12
@@ -35,7 +35,6 @@ table instance_data {
 }
 
 enum message_t:ubyte {
-  NACK,
   PHASE1,
   PRE_ACCEPT,
   PRE_ACCEPT_OK,
@@ -46,16 +45,21 @@ enum message_t:ubyte {
   COMMIT,
   PREPARE,
   PREPARE_REPLY,
-  PREPARE_OK
+  PREPARE_OK,
+  TRY_PRE_ACCEPT,
+  TRY_PRE_ACCEPT_REPLY
 }
 
 table message {
+  from:ushort;
   to:ushort;
+  nack:ubyte;
   ballot:ubyte;
   instance_id:instance_id;
   type:message_t;
   data:instance_data;
-  reply_from:ushort;
+  srt:ulong;
+  stp:ulong;
 }
 
 table batch {

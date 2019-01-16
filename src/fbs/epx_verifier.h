@@ -118,12 +118,15 @@ static inline int epx_instance_data_verify_as_root_with_type_hash(const void *bu
 static int epx_message_verify_table(flatcc_table_verifier_descriptor_t *td)
 {
     int ret;
-    if ((ret = flatcc_verify_field(td, 0, 2, 2) /* to */)) return ret;
-    if ((ret = flatcc_verify_field(td, 1, 1, 1) /* ballot */)) return ret;
-    if ((ret = flatcc_verify_field(td, 2, 16, 8) /* instance_id */)) return ret;
-    if ((ret = flatcc_verify_field(td, 3, 1, 1) /* type */)) return ret;
-    if ((ret = flatcc_verify_table_field(td, 4, 0, &epx_instance_data_verify_table) /* data */)) return ret;
-    if ((ret = flatcc_verify_field(td, 5, 2, 2) /* reply_from */)) return ret;
+    if ((ret = flatcc_verify_field(td, 0, 2, 2) /* from */)) return ret;
+    if ((ret = flatcc_verify_field(td, 1, 2, 2) /* to */)) return ret;
+    if ((ret = flatcc_verify_field(td, 2, 1, 1) /* nack */)) return ret;
+    if ((ret = flatcc_verify_field(td, 3, 1, 1) /* ballot */)) return ret;
+    if ((ret = flatcc_verify_field(td, 4, 16, 8) /* instance_id */)) return ret;
+    if ((ret = flatcc_verify_field(td, 5, 1, 1) /* type */)) return ret;
+    if ((ret = flatcc_verify_table_field(td, 6, 0, &epx_instance_data_verify_table) /* data */)) return ret;
+    if ((ret = flatcc_verify_field(td, 7, 8, 8) /* srt */)) return ret;
+    if ((ret = flatcc_verify_field(td, 8, 8, 8) /* stp */)) return ret;
     return flatcc_verify_ok;
 }
 

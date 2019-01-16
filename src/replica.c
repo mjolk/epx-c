@@ -8,19 +8,93 @@
 #include "replica.h"
 #include <stdio.h>
 
-struct replica* replica_new(){
-    struct replica *r = malloc(sizeof(struct replica));
-    if(r == 0) return 0;
+int send_io(struct replica *r, struct message *m){
+    int rc = chsend(r->chan_io[1], m, MSG_SIZE, 10);
+    if(rc < 0){
+        return -1;
+    }
+    return rc;
+}
+
+int send_eo(struct replica *r, struct message *m){
+    int rc = chsend(r->chan_eo[1], m, MSG_SIZE, 10);
+    if(rc < 0){
+        return -1;
+    }
+    return rc;
+}
+
+int send_exec(struct replica *r, struct message *m){
+    int rc = chsend(r->chan_exec[1], m, MSG_SIZE, 10);
+    if(rc < 0){
+        return -1;
+    }
+    return rc;
+}
+
+int send_prepare(struct replica *r, struct message *m){
+    m->type = PREPARE;
+    return send_io(r, m);
+}
+
+int send_pre_accept(struct replica *r, struct message *m){
+    m->type = PRE_ACCEPT;
+    return send_io(r, m);
+}
+
+int send_try_pre_accept(struct replica *r, struct message *m){
+    m->type = TRY_PRE_ACCEPT;
+    return send_io(r, m);
+}
+
+int send_try_pre_accept_reply(struct replica *r, struct message *m){
+    m->type = TRY_PRE_ACCEPT_REPLY;
+    return send_io(r, m);
+}
+
+int send_pre_accept_reply(struct replica *r, struct message *m){
+    m->type = PRE_ACCEPT_REPLY;
+    return send_io(r, m);
+}
+
+int send_pre_accept_ok(struct replica *r, struct message *m){
+    m->type = PRE_ACCEPT_OK;
+    return send_io(r, m);
+}
+
+int send_accept(struct replica *r, struct message *m){
+    m->type = ACCEPT;
+    return send_io(r, m);
+}
+
+int send_commit(struct replica *r, struct message *m){
+    m->type = COMMIT;
+    return send_io(r, m);
+}
+
+int send_accept_reply(struct replica *r, struct message *m){
+    m->type = ACCEPT_REPLY;
+    return send_io(r, m);
+}
+
+int send_prepare_reply(struct replica *r, struct message *m){
+    m->type = PREPARE_REPLY;
+    return send_io(r, m);
+}
+
+int new_replica(struct replica *r){
     r->running = 0;
     if(chmake(r->chan_tick) != 0) goto error;
     if(chmake(r->chan_propose) !=0) goto error;
     if(chmake(r->chan_ii) !=0) goto error;
     if(chmake(r->chan_io) !=0) goto error;
     if(chmake(r->chan_eo) !=0) goto error;
-    return r;
-error:
-    perror("problem creating channels\n");
+    if(chmake(r->chan_exec) !=0) goto error;
+    r->dh = kh_init(deferred);
     return 0;
+error:
+    perror("problem creating replica\n");
+    return -1;
 }
 
 int trigger(struct timer *t){
@@ -35,8 +109,8 @@ void tick(struct replica *r) {
         if(!nxt->paused)nxt->elapsed++;
         c = nxt;
         nxt = SIMPLEQ_NEXT(nxt, next);
-        if(trigger(c) && c->instance->on) {
-            c->instance->on(r, c);
+        if(trigger(c) && c->on) {
+            c->on(r, c);
         }
         //recheck status since timer cfg might have changed
         if(trigger(c)) {
@@ -46,8 +120,6 @@ void tick(struct replica *r) {
                 SIMPLEQ_REMOVE_HEAD(&r->timers, next);
                 prev = 0;
             }
-            SIMPLEQ_NEXT(c, next) = 0;
-            c->instance = 0;
             free(c);
         } else {
             prev = c;
@@ -55,20 +127,21 @@ void tick(struct replica *r) {
     }
 }
 
-int register_timer(struct replica *r, struct instance *i, int time_out) {
-    struct timer *timer = malloc(sizeof(struct timer));
-    if(timer == 0) return -1;
-    timer->time_out = time_out;
-    timer->elapsed = 0;
-    timer->instance = i;
-    SIMPLEQ_INSERT_TAIL(&r->timers, timer, next);
-    return 0;
+void register_timer(struct replica *r, struct instance *i, int time_out) {
+    i->ticker.time_out = time_out;
+    i->ticker.elapsed = 0;
+    i->ticker.instance = i;
+    SIMPLEQ_INSERT_TAIL(&r->timers, &i->ticker, next);
 }
 
 int register_instance(struct replica *r, struct instance *i) {
-    int t = register_timer(r, i, 2);
-    if(t != 0) return -1;
-    LLRB_INSERT(instance_index, &r->index[i->key.replica_id], i);
+    register_timer(r, i, 2);
+    struct instance *rej = LLRB_INSERT(instance_index,
+            &r->index[i->key.replica_id], i);
+    if(rej){
+        //instance already exists, cannot create
+        return -1;
+    }
     return 0;
 }
 
@@ -84,6 +157,9 @@ uint64_t sd_for_command(struct replica *r, struct command *c,
         struct instance_id *ignore, struct seq_deps_probe *p) {
     uint64_t mseq;
     for(int rc = 0;rc < N;rc++) {
+        if(c == 0){
+            noop_deps(&r->index[rc], &p->deps[rc]);
+        }
         mseq = max_seq(mseq, seq_deps_for_command(&r->index[rc], c, ignore, p));
     }
     return mseq;

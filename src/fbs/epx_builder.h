@@ -84,7 +84,7 @@ __flatbuffers_build_table(flatbuffers_, epx_instance_data, 3)
 static const flatbuffers_voffset_t __epx_message_required[] = { 0 };
 typedef flatbuffers_ref_t epx_message_ref_t;
 static epx_message_ref_t epx_message_clone(flatbuffers_builder_t *B, epx_message_table_t t);
-__flatbuffers_build_table(flatbuffers_, epx_message, 6)
+__flatbuffers_build_table(flatbuffers_, epx_message, 9)
 
 static const flatbuffers_voffset_t __epx_batch_required[] = { 0 };
 typedef flatbuffers_ref_t epx_batch_ref_t;
@@ -109,9 +109,11 @@ static inline epx_instance_data_ref_t epx_instance_data_create(flatbuffers_build
 __flatbuffers_build_table_prolog(flatbuffers_, epx_instance_data, epx_instance_data_identifier, epx_instance_data_type_identifier)
 
 #define __epx_message_formal_args ,\
-  uint16_t v0, uint8_t v1, epx_instance_id_t *v2, epx_message_t_enum_t v3, epx_instance_data_ref_t v4, uint16_t v5
+  uint16_t v0, uint16_t v1, uint8_t v2, uint8_t v3,\
+  epx_instance_id_t *v4, epx_message_t_enum_t v5, epx_instance_data_ref_t v6, uint64_t v7, uint64_t v8
 #define __epx_message_call_args ,\
-  v0, v1, v2, v3, v4, v5
+  v0, v1, v2, v3,\
+  v4, v5, v6, v7, v8
 static inline epx_message_ref_t epx_message_create(flatbuffers_builder_t *B __epx_message_formal_args);
 __flatbuffers_build_table_prolog(flatbuffers_, epx_message, epx_message_identifier, epx_message_type_identifier)
 
@@ -185,22 +187,28 @@ static epx_instance_data_ref_t epx_instance_data_clone(flatbuffers_builder_t *B,
     __flatbuffers_memoize_end(B, t, epx_instance_data_end(B));
 }
 
-__flatbuffers_build_scalar_field(0, flatbuffers_, epx_message_to, flatbuffers_uint16, uint16_t, 2, 2, UINT16_C(0), epx_message)
-__flatbuffers_build_scalar_field(1, flatbuffers_, epx_message_ballot, flatbuffers_uint8, uint8_t, 1, 1, UINT8_C(0), epx_message)
-__flatbuffers_build_struct_field(2, flatbuffers_, epx_message_instance_id, epx_instance_id, 16, 8, epx_message)
-__flatbuffers_build_scalar_field(3, flatbuffers_, epx_message_type, epx_message_t, epx_message_t_enum_t, 1, 1, UINT8_C(0), epx_message)
-__flatbuffers_build_table_field(4, flatbuffers_, epx_message_data, epx_instance_data, epx_message)
-__flatbuffers_build_scalar_field(5, flatbuffers_, epx_message_reply_from, flatbuffers_uint16, uint16_t, 2, 2, UINT16_C(0), epx_message)
+__flatbuffers_build_scalar_field(0, flatbuffers_, epx_message_from, flatbuffers_uint16, uint16_t, 2, 2, UINT16_C(0), epx_message)
+__flatbuffers_build_scalar_field(1, flatbuffers_, epx_message_to, flatbuffers_uint16, uint16_t, 2, 2, UINT16_C(0), epx_message)
+__flatbuffers_build_scalar_field(2, flatbuffers_, epx_message_nack, flatbuffers_uint8, uint8_t, 1, 1, UINT8_C(0), epx_message)
+__flatbuffers_build_scalar_field(3, flatbuffers_, epx_message_ballot, flatbuffers_uint8, uint8_t, 1, 1, UINT8_C(0), epx_message)
+__flatbuffers_build_struct_field(4, flatbuffers_, epx_message_instance_id, epx_instance_id, 16, 8, epx_message)
+__flatbuffers_build_scalar_field(5, flatbuffers_, epx_message_type, epx_message_t, epx_message_t_enum_t, 1, 1, UINT8_C(0), epx_message)
+__flatbuffers_build_table_field(6, flatbuffers_, epx_message_data, epx_instance_data, epx_message)
+__flatbuffers_build_scalar_field(7, flatbuffers_, epx_message_srt, flatbuffers_uint64, uint64_t, 8, 8, UINT64_C(0), epx_message)
+__flatbuffers_build_scalar_field(8, flatbuffers_, epx_message_stp, flatbuffers_uint64, uint64_t, 8, 8, UINT64_C(0), epx_message)
 
 static inline epx_message_ref_t epx_message_create(flatbuffers_builder_t *B __epx_message_formal_args)
 {
     if (epx_message_start(B)
-        || epx_message_instance_id_add(B, v2)
-        || epx_message_data_add(B, v4)
-        || epx_message_to_add(B, v0)
-        || epx_message_reply_from_add(B, v5)
-        || epx_message_ballot_add(B, v1)
-        || epx_message_type_add(B, v3)) {
+        || epx_message_instance_id_add(B, v4)
+        || epx_message_srt_add(B, v7)
+        || epx_message_stp_add(B, v8)
+        || epx_message_data_add(B, v6)
+        || epx_message_from_add(B, v0)
+        || epx_message_to_add(B, v1)
+        || epx_message_nack_add(B, v2)
+        || epx_message_ballot_add(B, v3)
+        || epx_message_type_add(B, v5)) {
         return 0;
     }
     return epx_message_end(B);
@@ -211,9 +219,12 @@ static epx_message_ref_t epx_message_clone(flatbuffers_builder_t *B, epx_message
     __flatbuffers_memoize_begin(B, t);
     if (epx_message_start(B)
         || epx_message_instance_id_pick(B, t)
+        || epx_message_srt_pick(B, t)
+        || epx_message_stp_pick(B, t)
         || epx_message_data_pick(B, t)
+        || epx_message_from_pick(B, t)
         || epx_message_to_pick(B, t)
-        || epx_message_reply_from_pick(B, t)
+        || epx_message_nack_pick(B, t)
         || epx_message_ballot_pick(B, t)
         || epx_message_type_pick(B, t)) {
         return 0;

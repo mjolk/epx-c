@@ -7,7 +7,10 @@
 
 #include "llrb-interval/slist.h"
 #include "message.h"
+
+#define size(V) (sizeof(V)/sizeof((V)[0]))
 struct replica;
+struct instance_index;
 
 struct seq_deps_probe{
     int updated;
@@ -20,9 +23,11 @@ struct timer {
     int time_out;
     int paused;
     struct instance* instance;
+    void (*on)(struct replica*, struct timer*);
 };
 
 struct instance {
+    struct timer ticker;
     struct dependency deps[N];
     uint8_t changed_deps;
     struct instance_id key;
@@ -31,7 +36,6 @@ struct instance {
     struct command* command;
     uint64_t seq;
     LLRB_ENTRY(instance) entry;
-    void (*on)(struct replica*, struct timer*);
     struct leader_tracker *lt;
 };
 
@@ -57,25 +61,26 @@ struct leader_tracker {
     uint8_t quorum[N];
 };
 
-int intcmp(struct instance*, struct instance*);
+//int intcmp(struct instance*, struct instance*);
 SIMPLEQ_HEAD(tickers, timer);
 LLRB_HEAD(instance_index, instance);
 LLRB_PROTOTYPE(instance_index, instance, entry, intcmp);
-LLRB_GENERATE(instance_index, instance, entry, intcmp);
 
-uint64_t seq_deps_for_command(struct instance_index*, struct command*,
-        struct instance_id*, struct seq_deps_probe *p);
 struct instance* pre_accept_conflict(struct instance_index*, struct instance *i,
         struct command *c, uint64_t seq, struct dependency *deps);
 struct instance *instance_from_message(struct message*);
-void update_recovery_instance(struct recovery_instance*, struct message*);
+struct message *message_from_instance(struct instance*);
+void update_recovery_instance(struct recovery_instance*, struct message*, int, int);
 void instance_reset(struct instance*);
 int is_state(enum state, enum state);
 int is_initial_ballot(uint8_t ballot);
 int update_deps(struct dependency*, struct dependency*);
 int equal_deps(struct dependency*, struct dependency*);
+int add_dep(struct dependency*, struct instance*);
 void timer_cancel(struct timer*);
 void timer_set(struct timer*, int);
+void timer_reset(struct timer*, int);
 uint8_t larger_ballot(uint8_t, size_t);
 size_t leader_from_ballot(uint8_t);
 int has_uncommitted_deps(struct instance *i);
+void noop_deps(struct instance_index*, struct dependency*);

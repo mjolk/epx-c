@@ -9,11 +9,8 @@
 #include <stdio.h>
 #include <errno.h>
 
-struct chan* chan_init() {
+int chan_init(struct chan *b) {
     int err = 0;
-    struct chan* b;
-    b = malloc(sizeof(struct chan));
-    if(b == 0) goto error;
     b->read = 0;
     b->write = 0;
     b->capacity = 256;
@@ -23,9 +20,10 @@ struct chan* chan_init() {
     if(err < 0) goto error;
     err = pthread_mutex_init(&b->lock, NULL);
     if(err < 0) goto error;
+    return err;
 error:
     perror("error....");
-    return 0;
+    return -1;
 }
 
 void send(struct chan* b, void *data){

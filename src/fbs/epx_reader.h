@@ -105,23 +105,23 @@ static inline int epx_io_t_is_known_value(epx_io_t_enum_t value)
 
 typedef uint8_t epx_message_t_enum_t;
 __flatbuffers_define_integer_type(epx_message_t, epx_message_t_enum_t, 8)
-#define epx_message_t_NACK ((epx_message_t_enum_t)UINT8_C(0))
-#define epx_message_t_PHASE1 ((epx_message_t_enum_t)UINT8_C(1))
-#define epx_message_t_PRE_ACCEPT ((epx_message_t_enum_t)UINT8_C(2))
-#define epx_message_t_PRE_ACCEPT_OK ((epx_message_t_enum_t)UINT8_C(3))
-#define epx_message_t_PRE_ACCEPT_REPLY ((epx_message_t_enum_t)UINT8_C(4))
-#define epx_message_t_ACCEPT ((epx_message_t_enum_t)UINT8_C(5))
-#define epx_message_t_ACCEPT_REPLY ((epx_message_t_enum_t)UINT8_C(6))
-#define epx_message_t_ACCEPT_OK ((epx_message_t_enum_t)UINT8_C(7))
-#define epx_message_t_COMMIT ((epx_message_t_enum_t)UINT8_C(8))
-#define epx_message_t_PREPARE ((epx_message_t_enum_t)UINT8_C(9))
-#define epx_message_t_PREPARE_REPLY ((epx_message_t_enum_t)UINT8_C(10))
-#define epx_message_t_PREPARE_OK ((epx_message_t_enum_t)UINT8_C(11))
+#define epx_message_t_PHASE1 ((epx_message_t_enum_t)UINT8_C(0))
+#define epx_message_t_PRE_ACCEPT ((epx_message_t_enum_t)UINT8_C(1))
+#define epx_message_t_PRE_ACCEPT_OK ((epx_message_t_enum_t)UINT8_C(2))
+#define epx_message_t_PRE_ACCEPT_REPLY ((epx_message_t_enum_t)UINT8_C(3))
+#define epx_message_t_ACCEPT ((epx_message_t_enum_t)UINT8_C(4))
+#define epx_message_t_ACCEPT_REPLY ((epx_message_t_enum_t)UINT8_C(5))
+#define epx_message_t_ACCEPT_OK ((epx_message_t_enum_t)UINT8_C(6))
+#define epx_message_t_COMMIT ((epx_message_t_enum_t)UINT8_C(7))
+#define epx_message_t_PREPARE ((epx_message_t_enum_t)UINT8_C(8))
+#define epx_message_t_PREPARE_REPLY ((epx_message_t_enum_t)UINT8_C(9))
+#define epx_message_t_PREPARE_OK ((epx_message_t_enum_t)UINT8_C(10))
+#define epx_message_t_TRY_PRE_ACCEPT ((epx_message_t_enum_t)UINT8_C(11))
+#define epx_message_t_TRY_PRE_ACCEPT_REPLY ((epx_message_t_enum_t)UINT8_C(12))
 
 static inline const char *epx_message_t_name(epx_message_t_enum_t value)
 {
     switch (value) {
-    case epx_message_t_NACK: return "NACK";
     case epx_message_t_PHASE1: return "PHASE1";
     case epx_message_t_PRE_ACCEPT: return "PRE_ACCEPT";
     case epx_message_t_PRE_ACCEPT_OK: return "PRE_ACCEPT_OK";
@@ -133,6 +133,8 @@ static inline const char *epx_message_t_name(epx_message_t_enum_t value)
     case epx_message_t_PREPARE: return "PREPARE";
     case epx_message_t_PREPARE_REPLY: return "PREPARE_REPLY";
     case epx_message_t_PREPARE_OK: return "PREPARE_OK";
+    case epx_message_t_TRY_PRE_ACCEPT: return "TRY_PRE_ACCEPT";
+    case epx_message_t_TRY_PRE_ACCEPT_REPLY: return "TRY_PRE_ACCEPT_REPLY";
     default: return "";
     }
 }
@@ -140,7 +142,6 @@ static inline const char *epx_message_t_name(epx_message_t_enum_t value)
 static inline int epx_message_t_is_known_value(epx_message_t_enum_t value)
 {
     switch (value) {
-    case epx_message_t_NACK: return 1;
     case epx_message_t_PHASE1: return 1;
     case epx_message_t_PRE_ACCEPT: return 1;
     case epx_message_t_PRE_ACCEPT_OK: return 1;
@@ -152,6 +153,8 @@ static inline int epx_message_t_is_known_value(epx_message_t_enum_t value)
     case epx_message_t_PREPARE: return 1;
     case epx_message_t_PREPARE_REPLY: return 1;
     case epx_message_t_PREPARE_OK: return 1;
+    case epx_message_t_TRY_PRE_ACCEPT: return 1;
+    case epx_message_t_TRY_PRE_ACCEPT_REPLY: return 1;
     default: return 0;
     }
 }
@@ -209,7 +212,12 @@ __flatbuffers_struct_as_root(epx_instance_id)
 
 __flatbuffers_define_struct_scalar_field(epx_instance_id, replica_id, flatbuffers_uint16, uint16_t)
 __flatbuffers_define_struct_scalar_field(epx_instance_id, instance_id, flatbuffers_uint64, uint64_t)
-/* Note: field has key, but there is no support for find by fields of this type. */
+/* Note: find only works on vectors sorted by this field. */
+__flatbuffers_define_find_by_scalar_field(epx_instance_id, instance_id, uint64_t)
+__flatbuffers_define_sort_by_scalar_field(epx_instance_id, instance_id, uint64_t, epx_instance_id_t)
+__flatbuffers_define_default_find_by_scalar_field(epx_instance_id, instance_id, uint64_t)
+__flatbuffers_define_default_scan_by_scalar_field(epx_instance_id, instance_id, uint64_t)
+#define epx_instance_id_vec_sort epx_instance_id_vec_sort_by_instance_id
 
 struct epx_dependency {
     alignas(8) uint16_t replica_id;
@@ -266,12 +274,15 @@ static inline epx_message_table_t epx_message_vec_at(epx_message_vec_t vec, size
 __flatbuffers_offset_vec_at(epx_message_table_t, vec, i, 0)
 __flatbuffers_table_as_root(epx_message)
 
-__flatbuffers_define_scalar_field(0, epx_message, to, flatbuffers_uint16, uint16_t, UINT16_C(0))
-__flatbuffers_define_scalar_field(1, epx_message, ballot, flatbuffers_uint8, uint8_t, UINT8_C(0))
-__flatbuffers_define_struct_field(2, epx_message, instance_id, epx_instance_id_struct_t, 0)
-__flatbuffers_define_scalar_field(3, epx_message, type, epx_message_t, epx_message_t_enum_t, UINT8_C(0))
-__flatbuffers_define_table_field(4, epx_message, data, epx_instance_data_table_t, 0)
-__flatbuffers_define_scalar_field(5, epx_message, reply_from, flatbuffers_uint16, uint16_t, UINT16_C(0))
+__flatbuffers_define_scalar_field(0, epx_message, from, flatbuffers_uint16, uint16_t, UINT16_C(0))
+__flatbuffers_define_scalar_field(1, epx_message, to, flatbuffers_uint16, uint16_t, UINT16_C(0))
+__flatbuffers_define_scalar_field(2, epx_message, nack, flatbuffers_uint8, uint8_t, UINT8_C(0))
+__flatbuffers_define_scalar_field(3, epx_message, ballot, flatbuffers_uint8, uint8_t, UINT8_C(0))
+__flatbuffers_define_struct_field(4, epx_message, instance_id, epx_instance_id_struct_t, 0)
+__flatbuffers_define_scalar_field(5, epx_message, type, epx_message_t, epx_message_t_enum_t, UINT8_C(0))
+__flatbuffers_define_table_field(6, epx_message, data, epx_instance_data_table_t, 0)
+__flatbuffers_define_scalar_field(7, epx_message, srt, flatbuffers_uint64, uint64_t, UINT64_C(0))
+__flatbuffers_define_scalar_field(8, epx_message, stp, flatbuffers_uint64, uint64_t, UINT64_C(0))
 
 struct epx_batch_table { uint8_t unused__; };
 

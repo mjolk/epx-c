@@ -20,7 +20,6 @@ enum state {
 
 
 enum message_type {
-    NACK,
     PHASE1,
     PRE_ACCEPT,
     PRE_ACCEPT_OK,
@@ -38,12 +37,20 @@ struct message {
     enum message_type type;
     size_t to;
     uint8_t ballot;
+    uint8_t nack;
     struct instance_id id;
     struct command *command;
     uint64_t seq;
     struct dependency deps[N];
     size_t from;
     enum state instance_status;
+    struct {
+        uint64_t instance_id;
+        size_t replica_id;
+        enum state status;
+    } conflict;
+    uint64_t start;
+    uint64_t stop;
 };
 
 int message_from_buffer(struct message*, void*);

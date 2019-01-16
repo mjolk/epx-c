@@ -9,7 +9,10 @@
 
 
 void instance_data_from_buffer(struct message *m, const void *buffer){
-    command_from_buffer(m->command, buffer);
+    int cp = command_from_buffer(m->command, buffer);
+    if(cp > 0 ){
+        m->command = 0;
+    }
     m->seq = ns(instance_data_seq(buffer));
     ns(dependency_vec_t) rdps = ns(instance_data_deps(buffer));
     size_t veclen = ns(dependency_vec_len(rdps));
@@ -26,6 +29,8 @@ int message_from_buffer(struct message *m, void *buffer){
     ns(message_table_t) bm = ns(message_as_root(buffer));
     if(!bm) goto error;
     m->to = ns(message_to(bm));
+    m->from = ns(message_from(bm));
+    m->nack = ns(message_nack(bm));
     m->ballot = ns(message_ballot(bm));
     ns(instance_id_struct_t) i_id = ns(message_instance_id(bm));
     if(!i_id) goto error;
@@ -35,8 +40,13 @@ int message_from_buffer(struct message *m, void *buffer){
         goto error;
     }
     m->type = ns(message_type(bm));
+    if(ns(message_stp_is_present(bm))){
+        m->stop = ns(message_stp(bm));
+    }
+    if(ns(message_srt_is_present(bm))){
+        m->start = ns(message_srt(bm));
+    }
     switch(m->type){
-        case NACK:
         case PRE_ACCEPT_OK:
             break;
         default:
@@ -64,19 +74,21 @@ void instance_data_to_buffer(struct message *m, flatcc_builder_t *b){
 }
 
 void message_to_buffer(struct message *m, flatcc_builder_t *b){
-    size_t s;
     ns(message_start_as_root(b));
     ns(message_to_add(b, m->to));
+    ns(message_from_add(b, m->from));
+    ns(message_nack_add(b, m->nack));
     ns(message_ballot_add(b, m->ballot));
     ns(message_instance_id_create(b, m->id.replica_id, m->id.instance_id));
     ns(message_type_add(b, m->type));
     switch(m->type){
-        case NACK:
         case PRE_ACCEPT_OK:
             break;
         default:
             instance_data_to_buffer(m, b);
     }
+    if(m->start)ns(message_srt_add(b, m->start));
+    if(m->stop)ns(message_stp_add(b, m->stop));
     ns(message_end_as_root(b));
 }
 
