@@ -58,6 +58,7 @@ table message {
   instance_id:instance_id;
   type:message_t;
   data:instance_data;
+  instance_status:status = NONE;
   srt:ulong;
   stp:ulong;
 }
@@ -68,10 +69,12 @@ table batch {
 }
 
 enum status:ubyte (bit_flags){
-  NONE = 0,
+  NONE,
   PRE_ACCEPTED,
+  PRE_ACCEPTED_EQ,
   ACCEPTED,
-  PREPARE,
+  PREPARING,
+  TRY_PRE_ACCEPTING,
   COMMITTED,
   EXECUTED
 }

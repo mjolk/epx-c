@@ -1,5 +1,5 @@
 /**
- * File   : src/command.c
+ * File   : command.c
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail->com>
  * Date   : di 11 sep 2018 23:26
@@ -11,24 +11,27 @@
 
 int command_from_buffer(struct command *c, const void *buffer) {
     if(ns(instance_data_command_is_present(buffer))){
-        ns(command_table_t) command = ns(instance_data_command(buffer));
-        c->id = ns(command_id(command));
-        flatbuffers_string_t start = ns(command_start_key(command));
+        ns(command_table_t) cmd = ns(instance_data_command(buffer));
+        if(cmd == 0){
+            return 1;
+        }
+        c->id = ns(command_id(cmd));
+        flatbuffers_string_t start = ns(command_start_key(cmd));
         //TODO defend overflow
         strncpy(c->span.start_key, start, flatbuffers_string_len(start));
-        flatbuffers_string_t end = ns(command_end_key(command));
+        flatbuffers_string_t end = ns(command_end_key(cmd));
         //TODO defend overflow
         strncpy(c->span.end_key, end, flatbuffers_string_len(end));
-        c->writing = ns(command_writing(command));
+        c->writing = ns(command_writing(cmd));
         //TODO defend buffer overflow
-        size_t scp = sizeof(ns(command_value(command)));
-        memcpy(&c->value, ns(command_value(command)), scp);
+        size_t scp = sizeof(ns(command_value(cmd)));
+        //memcpy(&c->value, ns(command_value(cmd)), scp);
         return 0;
     }
     return 1;
 }
 
-void command_to_buffer(struct command *c, flatcc_builder_t *b) {
+epx_command_ref_t command_to_buffer(struct command *c, flatcc_builder_t *b) {
     ns(command_start(b));
     ns(command_id_add(b, c->id));
     ns(command_start_key_create_str(b, c->span.start_key));
@@ -36,7 +39,7 @@ void command_to_buffer(struct command *c, flatcc_builder_t *b) {
     ns(command_writing_add(b, c->writing));
     ns(command_value_create(b, c->value,
                 sizeof(c->value)));
-    ns(command_end(b));
+    return ns(command_end(b));
 }
 
 int overlaps(struct span *s1, struct span *s2){

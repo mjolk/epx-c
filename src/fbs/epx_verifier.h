@@ -125,8 +125,9 @@ static int epx_message_verify_table(flatcc_table_verifier_descriptor_t *td)
     if ((ret = flatcc_verify_field(td, 4, 16, 8) /* instance_id */)) return ret;
     if ((ret = flatcc_verify_field(td, 5, 1, 1) /* type */)) return ret;
     if ((ret = flatcc_verify_table_field(td, 6, 0, &epx_instance_data_verify_table) /* data */)) return ret;
-    if ((ret = flatcc_verify_field(td, 7, 8, 8) /* srt */)) return ret;
-    if ((ret = flatcc_verify_field(td, 8, 8, 8) /* stp */)) return ret;
+    if ((ret = flatcc_verify_field(td, 7, 1, 1) /* instance_status */)) return ret;
+    if ((ret = flatcc_verify_field(td, 8, 8, 8) /* srt */)) return ret;
+    if ((ret = flatcc_verify_field(td, 9, 8, 8) /* stp */)) return ret;
     return flatcc_verify_ok;
 }
 

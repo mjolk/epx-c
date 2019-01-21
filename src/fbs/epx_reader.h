@@ -163,18 +163,22 @@ typedef uint8_t epx_status_enum_t;
 __flatbuffers_define_integer_type(epx_status, epx_status_enum_t, 8)
 #define epx_status_NONE ((epx_status_enum_t)UINT8_C(1))
 #define epx_status_PRE_ACCEPTED ((epx_status_enum_t)UINT8_C(2))
-#define epx_status_ACCEPTED ((epx_status_enum_t)UINT8_C(4))
-#define epx_status_PREPARE ((epx_status_enum_t)UINT8_C(8))
-#define epx_status_COMMITTED ((epx_status_enum_t)UINT8_C(16))
-#define epx_status_EXECUTED ((epx_status_enum_t)UINT8_C(32))
+#define epx_status_PRE_ACCEPTED_EQ ((epx_status_enum_t)UINT8_C(4))
+#define epx_status_ACCEPTED ((epx_status_enum_t)UINT8_C(8))
+#define epx_status_PREPARING ((epx_status_enum_t)UINT8_C(16))
+#define epx_status_TRY_PRE_ACCEPTING ((epx_status_enum_t)UINT8_C(32))
+#define epx_status_COMMITTED ((epx_status_enum_t)UINT8_C(64))
+#define epx_status_EXECUTED ((epx_status_enum_t)UINT8_C(128))
 
 static inline const char *epx_status_name(epx_status_enum_t value)
 {
     switch (value) {
     case epx_status_NONE: return "NONE";
     case epx_status_PRE_ACCEPTED: return "PRE_ACCEPTED";
+    case epx_status_PRE_ACCEPTED_EQ: return "PRE_ACCEPTED_EQ";
     case epx_status_ACCEPTED: return "ACCEPTED";
-    case epx_status_PREPARE: return "PREPARE";
+    case epx_status_PREPARING: return "PREPARING";
+    case epx_status_TRY_PRE_ACCEPTING: return "TRY_PRE_ACCEPTING";
     case epx_status_COMMITTED: return "COMMITTED";
     case epx_status_EXECUTED: return "EXECUTED";
     default: return "";
@@ -186,8 +190,10 @@ static inline int epx_status_is_known_value(epx_status_enum_t value)
     switch (value) {
     case epx_status_NONE: return 1;
     case epx_status_PRE_ACCEPTED: return 1;
+    case epx_status_PRE_ACCEPTED_EQ: return 1;
     case epx_status_ACCEPTED: return 1;
-    case epx_status_PREPARE: return 1;
+    case epx_status_PREPARING: return 1;
+    case epx_status_TRY_PRE_ACCEPTING: return 1;
     case epx_status_COMMITTED: return 1;
     case epx_status_EXECUTED: return 1;
     default: return 0;
@@ -281,8 +287,9 @@ __flatbuffers_define_scalar_field(3, epx_message, ballot, flatbuffers_uint8, uin
 __flatbuffers_define_struct_field(4, epx_message, instance_id, epx_instance_id_struct_t, 0)
 __flatbuffers_define_scalar_field(5, epx_message, type, epx_message_t, epx_message_t_enum_t, UINT8_C(0))
 __flatbuffers_define_table_field(6, epx_message, data, epx_instance_data_table_t, 0)
-__flatbuffers_define_scalar_field(7, epx_message, srt, flatbuffers_uint64, uint64_t, UINT64_C(0))
-__flatbuffers_define_scalar_field(8, epx_message, stp, flatbuffers_uint64, uint64_t, UINT64_C(0))
+__flatbuffers_define_scalar_field(7, epx_message, instance_status, epx_status, epx_status_enum_t, UINT8_C(1))
+__flatbuffers_define_scalar_field(8, epx_message, srt, flatbuffers_uint64, uint64_t, UINT64_C(0))
+__flatbuffers_define_scalar_field(9, epx_message, stp, flatbuffers_uint64, uint64_t, UINT64_C(0))
 
 struct epx_batch_table { uint8_t unused__; };
 

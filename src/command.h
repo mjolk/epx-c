@@ -1,5 +1,5 @@
 /**
- * File   : src/command.h
+ * File   : command.h
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : di 11 sep 2018 08:25
@@ -36,7 +36,7 @@ struct command {
 };
 
 int command_from_buffer(struct command*, const void*);
-void command_to_buffer(struct command*, flatcc_builder_t*);
+epx_command_ref_t command_to_buffer(struct command*, flatcc_builder_t*);
 int overlaps(struct span*, struct span*);
 int encloses(struct span*, struct span*);
 int interferes(struct command*, struct command*);

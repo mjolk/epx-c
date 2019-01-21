@@ -1,15 +1,12 @@
 /**
- * File   : epx.c
+ * File   : main.c
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
- * Date   : do 06 sep 2018 02:44
+ * Date   : do 17 jan 2019 00:47
  */
 
-#include "node.h"
+#include "epx.c"
 
-int blabla(){
+int main(){
     return 0;
 }
-
-
-
