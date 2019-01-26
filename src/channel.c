@@ -22,7 +22,7 @@ init_error:
     return -1;
 }
 
-void send(chan* b, void *data){
+void chan_send(chan* b, void *data){
     int err = 0;
     do
         err = sem_wait(&b->s_sem);
@@ -38,9 +38,9 @@ send_error:
     return;
 }
 
-void* recv(chan* b){
+void* chan_recv(chan* b){
     int err = 0;
-    void *result = NULL;
+    void *result = 0;
     do
         err = sem_wait(&b->c_sem);
     while(err != 0 && errno == EINTR);

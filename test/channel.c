@@ -17,6 +17,7 @@ int main(){
     if(chan_init(channel) < 0) return 1;
     pthread_t sending[3];
     pthread_t receiving[1];
+
     for(int j = 0; j < 1;j++){
         if(pthread_create(&receiving[j], NULL, receivemsg, channel) != 0)
             return 1;
@@ -37,19 +38,17 @@ void *sendmsg(void *ch){
     for(int i = 0;i < 1000;i++){
         char *msg = malloc(sizeof(char)*5);
         if(sprintf(msg, "%d", i) < 0) return 0;
-        send(ch, (void*)msg);
+        chan_send(ch, (void*)msg);
     }
-
     return 0;
 }
 
 void *receivemsg(void *ch){
     int running = 1;
     while(running){
-        char *msg = recv(ch);
+        char *msg = chan_recv(ch);
         if(chan_size(ch) == 0) running = 0;
         free(msg);
     }
-
     return 0;
 }

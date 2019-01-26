@@ -83,7 +83,7 @@ coroutine void tclock(struct node *n){
 coroutine void nrecv_int(struct node *n){
     struct message *m;
     while(n->running){
-        if((m = recv(&n->chan_ii))){
+        if((m = chan_recv(&n->chan_ii))){
             chsend(n->r.chan_ii[0], m, MSG_SIZE, 20);
         }
     }
@@ -92,7 +92,7 @@ coroutine void nrecv_int(struct node *n){
 coroutine void nrecv_ext(struct node *n){
     struct message *m;
     while(n->running){
-        if((m = recv(&n->chan_ei))){
+        if((m = chan_recv(&n->chan_ei))){
             chsend(n->r.chan_propose[0], m, MSG_SIZE, 20);
         }
     }
@@ -102,7 +102,7 @@ coroutine void nsend_exec(struct node *n){
     struct message *m;
     while(n->running){
         if((chrecv(n->r.chan_exec[0], &m, MSG_SIZE, -1)) >= 0){
-            send(&n->chan_exec, m);
+            chan_send(&n->chan_exec, m);
         }
     }
 }
@@ -111,7 +111,7 @@ coroutine void nsend_int(struct node *n){
     struct message *m;
     while(n->running){
         if((chrecv(n->r.chan_io[0], &m, MSG_SIZE, -1)) >= 0){
-            send(&n->chan_io, m);
+            chan_send(&n->chan_io, m);
         }
     }
 }
@@ -120,7 +120,7 @@ coroutine void nsend_ext(struct node *n){
     struct message *m;
     while(n->running){
         if((chrecv(n->r.chan_eo[0], &m, MSG_SIZE, -1)) >= 0){
-            send(&n->chan_eo, m);
+            chan_send(&n->chan_eo, m);
         }
     }
 }
@@ -168,19 +168,19 @@ void stop(struct node *n){
 }
 
 struct message *read_int(struct node *n){
-    return recv(&n->chan_io);
+    return chan_recv(&n->chan_io);
 }
 
 struct message *read_ext(struct node *n){
-    return recv(&n->chan_eo);
+    return chan_recv(&n->chan_eo);
 }
 
 void write_int(struct node *n, struct message *m){
-    send(&n->chan_ii, m);
+    chan_send(&n->chan_ii, m);
 }
 
 void write_ext(struct node *n, struct message *m){
-    send(&n->chan_ei, m);
+    chan_send(&n->chan_ei, m);
 }
 
 int write_message(int ch, struct message *m){

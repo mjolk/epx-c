@@ -22,8 +22,7 @@ typedef struct chan {
     sem_t s_sem;
 } chan;
 
-
 int chan_init(chan*);
-void send(chan* buf, void *data);
-void* recv(chan* buf);
+void chan_send(chan* buf, void *data);
+void* chan_recv(chan* buf);
 int chan_size(chan*);
