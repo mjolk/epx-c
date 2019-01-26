@@ -18,7 +18,7 @@ int chan_init(chan *b) {
     if(pthread_mutex_init(&b->lock, NULL) != 0) goto init_error;
     return 0;
 init_error:
-    perror("sync error");
+    perror("init sync error");
     return -1;
 }
 
