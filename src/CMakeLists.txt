@@ -45,7 +45,7 @@ add_library(epx
 	replica.c
 	epaxos.c
 	fbs.c
-	buffer.c
+	channel.c
 	node.c
 	epx.c
 	)

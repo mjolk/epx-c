@@ -9,6 +9,19 @@
 #include "../src/message.h"
 #include <stdio.h>
 
+void* to_buffer(flatcc_builder_t *b, struct message *m){
+    message_to_buffer(m, b);
+    size_t s;
+    void *nb = flatcc_builder_finalize_aligned_buffer(b, &s);
+    int ret;
+    if((ret = ns(message_verify_as_root(nb, s)))){
+        printf("Message buffer invalid: %s\n",
+                flatcc_verify_error_string(ret));
+        return 0;
+    }
+    return nb;
+}
+
 int main(){
     struct span sp = {
         .start_key = "1",
@@ -46,15 +59,9 @@ int main(){
 
     flatcc_builder_t builder;
     flatcc_builder_init(&builder);
-    message_to_buffer(&m, &builder);
-    size_t s;
-    void *b = flatcc_builder_finalize_aligned_buffer(&builder, &s);
-    int ret;
-    if((ret = ns(message_verify_as_root(b, s)))){
-        printf("Message buffer invalid: %s\n",
-                flatcc_verify_error_string(ret));
-        return 1;
-    }
+
+    void *b = to_buffer(&builder, &m);
+    if(b == 0) return 1;
 
     struct message decoded;
     struct span spd = {
@@ -71,7 +78,6 @@ int main(){
     if(message_from_buffer(&decoded, b)){
         return 1;
     }
-    flatcc_builder_clear(&builder);
     free(b);
     assert(decoded.type == PRE_ACCEPT);
     assert(decoded.to == 2);
@@ -87,5 +93,25 @@ int main(){
     assert(strcmp(decoded.command->span.end_key, "4") == 0);
     assert(decoded.command->id == 1);
     assert(decoded.command->writing == WRITE);
+
+    flatcc_builder_reset(&builder);
+    for(int i = 0;i < N;i++){
+        m.deps[i].id.replica_id = 2;
+        m.deps[i].id.instance_id = 1;
+        m.deps[i].committed = 1;
+    }
+    void *db = to_buffer(&builder, &m);
+    if(db == 0) return 1;
+    if(message_from_buffer(&decoded, db)){
+        return 1;
+    }
+    for(int i = 0;i < N;i++){
+        assert(decoded.deps[i].id.replica_id == 2);
+        assert(decoded.deps[i].id.instance_id == 1);
+        assert(decoded.deps[i].committed == 1);
+    }
+    flatcc_builder_clear(&builder);
+    free(db);
     return 0;
 }
+

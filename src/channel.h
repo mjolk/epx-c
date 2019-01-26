@@ -1,5 +1,5 @@
 /**
- * File   : src/buffer.h
+ * File   : channel.h
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 06 sep 2018 04:38
@@ -10,10 +10,12 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+#define CAPACITY 2048
+
 typedef struct chan {
     uint32_t read;
     uint32_t write;
-    void* buffer[256];
+    void* buffer[CAPACITY];
     int capacity;
     pthread_mutex_t lock;
     sem_t c_sem;
@@ -21,6 +23,7 @@ typedef struct chan {
 } chan;
 
 
-int chan_init(struct chan*);
-void send(struct chan* buf, void *data);
-void* recv(struct chan* buf);
+int chan_init(chan*);
+void send(chan* buf, void *data);
+void* recv(chan* buf);
+int chan_size(chan*);
