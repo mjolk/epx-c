@@ -1,9 +1,0 @@
-{
-    "editor.fontFamily": "'Source Code Pro for Powerline','Droid Sans Mono', 'monospace', monospace, 'Droid Sans Fallback'",
-    "editor.fontSize": 13,
-    "cmake.configureOnOpen": true,
-    "C_Cpp.configurationWarnings": "Disabled",
-    "files.associations": {
-        "buffer.h": "c"
-    }
-}

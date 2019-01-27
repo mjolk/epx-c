@@ -42,7 +42,7 @@ void tenc(void *im, flatcc_builder_t *b){
 
 struct fbs_sock *new_fbs_sock(size_t rid){
     struct fbs_sock *sock = malloc(sizeof(struct fbs_sock));
-    if(sock == 0) return 0;
+    assert(sock == 0);
     sock->decode = tdec;
     sock->encode = tenc;
     sock->deadline = -1;
@@ -57,7 +57,7 @@ coroutine void ipc_client(int s){
     strncpy(m->id, msgstr, ID);
     m->replica_id = 1;
     struct fbs_sock *sock = new_fbs_sock(2);
-    assert(sock != 0);
+    assert(sock == 0);
     int fbs = fbs_sock_attach(s, sock);
     assert(fbs >= 0);
     size_t remote_replica = fbs_sock_remote_id(fbs);
