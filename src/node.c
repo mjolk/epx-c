@@ -53,7 +53,7 @@ int connect(int rep, struct node *n, size_t xrid){
     hclose(c->ap);
     c->handle = tcp_connect(&c->addr, -1);
     if(c->handle < 0) return -1;
-    c->handle = fbs_attach(c->handle, &c->fbs);
+    c->handle = fbs_sock_attach(c->handle, &c->fbs);
     if(c->handle < 0) return -1;
     if(c->fbs.xreplica_id != xrid) return -1;
     c->id = c->fbs.xreplica_id;
@@ -125,7 +125,7 @@ coroutine void nsend_ext(struct node *n){
     }
 }
 
-static void set_con_state(struct fbs *f, size_t r_id){
+static void set_con_state(struct fbs_sock *f, size_t r_id){
     f->replica_id = r_id;
     f->hdrlen = 4;
     f->deadline = 80;
@@ -221,9 +221,9 @@ coroutine void internal_listen(struct node *n, int port, int rep){
     while(n->running){
         ch = tcp_accept(ls, NULL, -1);
         if(ch < 0) return;
-        struct fbs f;
+        struct fbs_sock f;
         set_con_state(&f, n->r.id);
-        ch = fbs_attach(ch, &f);
+        ch = fbs_sock_attach(ch, &f);
         if(ch < 0) return;
         struct connection *c = &n->cons[f.xreplica_id];
         close_connection(c);

@@ -1,0 +1,8 @@
+namespace tepx;
+
+table test_message {
+  id:string;
+  replica_id:ushort;
+}
+
+root_type test_message;

@@ -7,7 +7,7 @@
 
 #include "epaxos.h"
 #include "channel.h"
-#include "fbs.h"
+#include "fbs_sock.h"
 #include <pthread.h>
 
 enum protocol {
@@ -24,7 +24,7 @@ struct connection {
     int back_off;
     int error;
     enum protocol p;
-    struct fbs fbs;
+    struct fbs_sock fbs;
     int ap;
     int sending;
     int alive;

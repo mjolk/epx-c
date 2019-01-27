@@ -29,7 +29,8 @@ void instance_data_from_buffer(struct message *m, const void *buffer){
     }
 }
 
-int message_from_buffer(struct message *m, void *buffer){
+int message_from_buffer(void *im, void *buffer){
+    struct message *m = im;
     ns(message_table_t) bm = ns(message_as_root(buffer));
     if(!bm) goto error;
     m->to = ns(message_to(bm));
@@ -85,7 +86,8 @@ epx_instance_data_ref_t instance_data_to_buffer(struct message *m,
     return ns(instance_data_end(b));
 }
 
-void message_to_buffer(struct message *m, flatcc_builder_t *b){
+void message_to_buffer(void *im, flatcc_builder_t *b){
+    struct message *m = im; 
     ns(message_start_as_root(b));
     ns(message_to_add(b, m->to));
     ns(message_from_add(b, m->from));

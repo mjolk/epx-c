@@ -53,5 +53,5 @@ struct message {
     uint64_t stop;
 };
 
-int message_from_buffer(struct message*, void*);
-void message_to_buffer(struct message*, flatcc_builder_t*);
+int message_from_buffer(void*, void*);
+void message_to_buffer(void*, flatcc_builder_t*);

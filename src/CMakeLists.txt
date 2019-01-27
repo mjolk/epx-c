@@ -24,6 +24,7 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
+# TODO this is a debug version, add optimized version + switch
 add_library(imp_dill STATIC IMPORTED)
 set_property(TARGET imp_dill PROPERTY
 	IMPORTED_LOCATION /usr/local/lib/libdill.a)
@@ -44,7 +45,7 @@ add_library(epx
 	span.c
 	replica.c
 	epaxos.c
-	fbs.c
+	fbs_sock.c
 	channel.c
 	node.c
 	epx.c
@@ -52,6 +53,8 @@ add_library(epx
 
 add_dependencies(epx fbs_built)
 target_include_directories(epx INTERFACE "${CMAKE_SOURCE_DIR}/src/fbs")
+target_include_directories(epx INTERFACE "${CMAKE_SOURCE_DIR}/src/llrb-interval")
+target_include_directories(epx INTERFACE "${CMAKE_SOURCE_DIR}/test/fbs")
 
 target_compile_features(epx PRIVATE c_std_11)
 target_link_libraries(epx
