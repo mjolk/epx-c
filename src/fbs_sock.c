@@ -66,7 +66,7 @@ int fbs_sock_attach(int u, struct fbs_sock *s) {
     rc = brecv(s->u, &s->xreplica_id, 1, s->deadline);
     if(rc < 0) {err = errno; goto sock_error;}
     int h = hmake(&s->hvfs);
-    if(h < 0) {err = errno; hclose(h); goto sock_error;}
+    if(h < 0) {err = errno; goto sock_error;}
     return h;
 sock_error:
     flatcc_builder_clear(&s->b);
