@@ -1,22 +1,32 @@
 /**
- * File   : src/instance.c
+ * File   : instance.c
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 06 sep 2018 03:36
  */
 
 #include "instance.h"
+#include <errno.h>
 
 struct message *message_from_instance(struct instance *i){
     struct message *nm = malloc(sizeof(struct message));
-    if(nm == 0) return 0;
+    if(nm == 0){ errno = ENOMEM; return 0;};
     nm->ballot = i->ballot;
     nm->command = i->command;
     nm->id = i->key;
     nm->seq = i->seq;
-    memcpy(nm->deps, i->deps,
-            size(i->deps));
+    memcpy(nm->deps, i->deps, size(i->deps));
     return nm;
+}
+
+struct instance *instance_from_message(struct message *m){
+    struct instance *i = malloc(sizeof(struct instance));
+    if(i == 0){ errno = ENOMEM; return 0;};
+    i->command = m->command;
+    i->key = m->id;
+    i->seq = m->seq;
+    i->status = NONE;
+    return i;
 }
 
 int is_state(enum state state_a, enum state state_b){
@@ -53,21 +63,10 @@ int equal_deps(struct dependency *deps1, struct dependency *deps2){
     return 1;
 }
 
-struct instance *instance_from_message(struct message *m){
-    struct instance *i = malloc(sizeof(struct instance));
-    if(i == 0) return 0;
-    i->command = m->command;
-    i->key = m->id;
-    i->seq = m->seq;
-    i->status = NONE;
-    return i;
-}
-
 void update_recovery_instance(struct recovery_instance *ri, struct message *m,
         int leader_replied, int pa_count){
     ri->command = m->command;
-    memcpy(ri->deps, m->deps,
-            sizeof(m->deps)/sizeof(m->deps[0]));
+    memcpy(ri->deps, m->deps, size(m->deps));
     ri->seq = m->seq;
     ri->status = m->instance_status;
     ri->leader_replied = leader_replied;
@@ -78,7 +77,6 @@ int intcmp(struct instance *e1, struct instance *e2)
 {
     return (e1->key.instance_id < e2->key.instance_id ? -1 : e1->key.instance_id > e2->key.instance_id);
 }
-
 
 LLRB_GENERATE(instance_index, instance, entry, intcmp);
 
@@ -114,8 +112,6 @@ void timer_reset(struct timer *t, int time_out){
     t->time_out = time_out;
     t->elapsed = 0;
 }
-
-
 
 int is_committed(struct instance *i){
     return (i->status == COMMITTED);

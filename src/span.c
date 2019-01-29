@@ -1,5 +1,5 @@
 /**
- * File   : src/span.c
+ * File   : span.c
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : vr 04 jan 2019 19:51
@@ -42,12 +42,12 @@ void merge(struct span *to_merge, struct span_group *sll){
     }
 }
 
-//TODO check this shit, prolly segfaults
-void delete_span_group(){
-    struct span *del;
-    LLRB_FOREACH(del, span_tree, &rt) {
-        LLRB_DELETE(span_tree, &rt, del);
-        free(del);
+void clear(){
+    struct span *s = LLRB_MIN(span_tree, &rt);
+    while(s){
+        struct span *c = s;
+        s = LLRB_NEXT(span_tree, &rt, s);
+        free(LLRB_DELETE(span_tree, &rt, c));
     }
 }
 
@@ -88,6 +88,6 @@ uint64_t seq_deps_for_command(
             }
         }
     }
-    delete_span_group();
+    //clear();
     return mseq;
 }

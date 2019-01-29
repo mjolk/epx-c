@@ -21,3 +21,7 @@ add_dependencies(fbs_sock_test fbs_test_built)
 target_link_libraries(fbs_sock_test epx)
 target_include_directories(fbs_sock_test INTERFACE "${CMAKE_SOURCE_DIR}/test/fbs")
 add_test(NAME fbs_sock COMMAND fbs_sock_test)
+
+add_executable(instance_test instance.c)
+target_link_libraries(instance_test epx)
+add_test(NAME instance COMMAND instance_test)
