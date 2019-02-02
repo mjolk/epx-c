@@ -78,7 +78,7 @@ uint64_t seq_deps_for_command(
                 if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
                             &ti->command->span, &ml, merge)){
                     probe->updated = add_dep(probe->deps, ti);
-                    struct span *nsp = &ti->command->span;
+                    struct span *nsp = &ti->command->span;//stack: dangerous!!
                     LLRB_INSERT(span_tree, &rt, nsp);
                     if(!LLRB_RANGE_GROUP_ADD(span_tree, &rt, &cmd->span, &ml,
                                 merge)){
