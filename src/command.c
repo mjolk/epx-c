@@ -5,6 +5,7 @@
  * Date   : di 11 sep 2018 23:26
  */
 
+#include <stdio.h>
 #include "command.h"
 #include "fbs/flatbuffers_common_reader.h"
 
@@ -43,7 +44,9 @@ epx_command_ref_t command_to_buffer(struct command *c, flatcc_builder_t *b) {
 }
 
 int overlaps(struct span *s1, struct span *s2){
-    return (strncmp(s1->start_key, s2->end_key, KEY_SIZE) <= 0)&& (strncmp(s1->end_key, s2->start_key, KEY_SIZE) >= 0);
+    int ret = (strncmp(s1->start_key, s2->end_key, KEY_SIZE) <= 0)&& (strncmp(s1->end_key, s2->start_key, KEY_SIZE) >= 0);
+    printf(" <-=------------ OVERLAPS------->>>> %d \n", ret);
+    return ret;
 }
 
 int encloses(struct span *s1, struct span *s2){

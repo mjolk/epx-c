@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include "instance_id.h"
 
-int is_instance_id(struct instance_id *a, struct instance_id *b){
+int eq_instance_id(struct instance_id *a, struct instance_id *b){
     return (a->instance_id == b->instance_id) && (a->replica_id == b->replica_id);
 }
 

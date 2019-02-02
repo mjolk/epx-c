@@ -25,3 +25,7 @@ add_test(NAME fbs_sock COMMAND fbs_sock_test)
 add_executable(instance_test instance.c)
 target_link_libraries(instance_test epx)
 add_test(NAME instance COMMAND instance_test)
+
+add_executable(index_test index.c)
+target_link_libraries(index_test epx)
+add_test(NAME index COMMAND index_test)

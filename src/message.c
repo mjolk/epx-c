@@ -75,7 +75,7 @@ epx_instance_data_ref_t instance_data_to_buffer(struct message *m,
     }
     ns(instance_data_seq_add(b, m->seq));
     ns(instance_data_deps_start(b));
-    for(size_t i = 0; i < N; i++){
+    for(size_t i = 0; i < MAX_DEPS; i++){
         if(m->deps[i].id.replica_id > 0){
             ns(instance_data_deps_push_create(b,
                         m->deps[i].id.replica_id, m->deps[i].id.instance_id,

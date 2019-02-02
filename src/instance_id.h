@@ -1,5 +1,5 @@
 /**
- * File   : src/instance_id.h
+ * File   : instance_id.h
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 13 sep 2018 23:22
@@ -10,7 +10,8 @@
 
 #define N 3
 #define VALUE_SIZE 1024
-#define KEY_SIZE 16
+#define KEY_SIZE 3
+#define MAX_DEPS 8
 
 struct instance_id{
     size_t replica_id;
@@ -22,6 +23,6 @@ struct dependency{
     uint8_t committed;
 };
 
-int is_instance_id(struct instance_id*, struct instance_id*);
+int eq_instance_id(struct instance_id*, struct instance_id*);
 
 uint64_t max_seq(uint64_t a, uint64_t b);

@@ -1,5 +1,5 @@
 /**
- * File   : src/instance.h
+ * File   : instance.h
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 06 sep 2018 03:42
@@ -8,13 +8,14 @@
 #include "llrb-interval/slist.h"
 #include "message.h"
 
-#define size(V) (sizeof(V)/sizeof((V)[0]))
+#define DEPSIZE sizeof(struct dependency)*MAX_DEPS
+
 struct replica;
 struct instance_index;
 
 struct seq_deps_probe{
     int updated;
-    struct dependency deps[N];
+    struct dependency deps[MAX_DEPS];
 };
 
 struct timer {
@@ -28,7 +29,7 @@ struct timer {
 
 struct instance {
     struct timer ticker;
-    struct dependency deps[N];
+    struct dependency deps[MAX_DEPS];
     uint8_t changed_deps;
     struct instance_id key;
     uint8_t ballot;
@@ -41,7 +42,7 @@ struct instance {
 
 struct recovery_instance {
     struct command *command;
-    struct dependency deps[N];
+    struct dependency deps[MAX_DEPS];
     enum state status;
     uint64_t seq;
     uint8_t pre_accept_count;
@@ -66,8 +67,6 @@ SIMPLEQ_HEAD(tickers, timer);
 LLRB_HEAD(instance_index, instance);
 LLRB_PROTOTYPE(instance_index, instance, entry, intcmp);
 
-struct instance* pre_accept_conflict(struct instance_index*, struct instance *i,
-        struct command *c, uint64_t seq, struct dependency *deps);
 struct instance *instance_from_message(struct message*);
 struct message *message_from_instance(struct instance*);
 void update_recovery_instance(struct recovery_instance*, struct message*, int, int);
@@ -81,6 +80,9 @@ void timer_cancel(struct timer*);
 void timer_set(struct timer*, int);
 void timer_reset(struct timer*, int);
 uint8_t larger_ballot(uint8_t, size_t);
-size_t leader_from_ballot(uint8_t);
+size_t replica_from_ballot(uint8_t);
+uint8_t unique_ballot(uint8_t, size_t);
 int has_uncommitted_deps(struct instance *i);
-void noop_deps(struct instance_index*, struct dependency*);
+int is_committed(struct instance*);
+int has_key(struct instance_id*, struct dependency*);
+uint64_t lt_replica_id(size_t, struct dependency*);

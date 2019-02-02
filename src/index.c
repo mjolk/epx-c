@@ -1,11 +1,13 @@
 /**
- * File   : span.c
+ * File   : index.c
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : vr 04 jan 2019 19:51
  */
 
-#include "span.h"
+#include <stdio.h>
+#include <inttypes.h>
+#include "index.h"
 #include "llrb-interval/llrb-interval.h"
 
 int spcmp(struct span *sp1, struct span *sp2){
@@ -35,7 +37,6 @@ void merge(struct span *to_merge, struct span_group *sll){
             }
             SLL_REMOVE_AFTER(prev, next);
             LLRB_DELETE(span_tree, &rt, c);
-            free(c);
         } else {
             prev = c;
         }
@@ -53,33 +54,34 @@ void clear(){
 
 uint64_t seq_deps_for_command(
         struct instance_index *index,
-        struct command *c,
+        struct command *cmd,
         struct instance_id *ignore,
         struct seq_deps_probe *probe
         ){
     uint64_t mseq = 0;
     SLL_INIT(&ml);
     LLRB_INIT(&rt);
-    struct instance *ci;
-    struct instance *ti;
+    struct instance *ci, *ti;
     ci = LLRB_MAX(instance_index, index);
     while(ci){
         ti = ci;
         ci = LLRB_PREV(instance_index, index, ci);
-        if((ignore) && is_instance_id(&ti->key, ignore)){
+        if((ignore) && eq_instance_id(&ti->key, ignore)){
             continue;
         }
         if(is_state(ti->status, EXECUTED)){
             break;
         }
-        if(interferes(ti->command, c)){
+        if(interferes(ti->command, cmd)){
             mseq = max_seq(mseq, ti->seq);
             if(ti->command->writing) {
                 if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
-                            &ti->command->span, &ml, &merge)){
+                            &ti->command->span, &ml, merge)){
                     probe->updated = add_dep(probe->deps, ti);
-                    if(!SLL_NEXT(SLL_FIRST(&ml), next) &&
-                            encloses(SLL_FIRST(&ml), &c->span)){
+                    struct span *nsp = &ti->command->span;
+                    LLRB_INSERT(span_tree, &rt, nsp);
+                    if(!LLRB_RANGE_GROUP_ADD(span_tree, &rt, &cmd->span, &ml,
+                                merge)){
                         break;
                     }
                 }
@@ -88,6 +90,54 @@ uint64_t seq_deps_for_command(
             }
         }
     }
-    //clear();
     return mseq;
+}
+
+void noop_deps(struct instance_index *index, struct dependency *dep) {
+    struct instance *ti, *nxt;
+    nxt = LLRB_MAX(instance_index, index);
+    while(nxt){
+        ti = nxt;
+        nxt = LLRB_PREV(instance_index, index, nxt);
+        if(ti->status >= COMMITTED &&
+                ti->key.instance_id >= dep->id.instance_id){
+            dep->committed = 1;
+            return;
+        }
+    }
+}
+
+struct instance* pre_accept_conflict(struct instance_index *index,
+        struct instance *i, struct command *c,
+        uint64_t seq, struct dependency *deps){
+    struct instance *ti;
+    struct instance *nxt = LLRB_PREV(instance_index, index, i);
+    while(nxt){
+        ti = nxt;
+        nxt = LLRB_PREV(instance_index, index, nxt);
+        if(is_state(ti->status, EXECUTED)){
+            break;
+        }
+        if(has_key(&ti->key, deps)){
+            continue;
+        }
+        if(ti->command == 0){
+            continue;
+        }
+        uint64_t lte_ikey = lt_replica_id(i->key.replica_id, ti->deps);
+        if(lte_ikey >= i->key.instance_id){
+            continue;
+        }
+        if(interferes(ti->command, c)){
+            uint64_t lte_tikey = lt_replica_id(ti->key.replica_id, deps);
+            if((ti->key.instance_id > lte_tikey) ||
+                    ((ti->key.instance_id < lte_tikey) &&
+                     (ti->seq >= seq) && ((ti->key.replica_id != i->key.replica_id) ||
+                         ti->status > PRE_ACCEPTED_EQ))){
+                return ti;
+            }
+        }
+
+    }
+    return 0;
 }

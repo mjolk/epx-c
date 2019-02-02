@@ -5,6 +5,8 @@
  * Date   : do 06 sep 2018 03:36
  */
 
+#include <stdio.h>
+#include <inttypes.h>
 #include "instance.h"
 #include <errno.h>
 
@@ -15,7 +17,7 @@ struct message *message_from_instance(struct instance *i){
     nm->command = i->command;
     nm->id = i->key;
     nm->seq = i->seq;
-    memcpy(nm->deps, i->deps, size(i->deps));
+    memcpy(nm->deps, i->deps, DEPSIZE);
     return nm;
 }
 
@@ -49,12 +51,31 @@ size_t replica_from_ballot(uint8_t ballot){
     return ballot & 15;
 }
 
-int equal_deps(struct dependency *deps1, struct dependency *deps2){
-    for(int i = 0; i < N; i++){
-        if(deps1->id.instance_id != deps2->id.instance_id){
-            return 0;
+uint64_t lt_replica_id(size_t replica_id,
+        struct dependency *deps){
+    uint64_t lt_id = 0;
+    for(int i = 0;i < MAX_DEPS;i++){
+        if(replica_id == deps->id.replica_id &&
+                deps->id.instance_id > lt_id){
+            lt_id = deps->id.instance_id;
         }
-        if(deps1->committed != deps2->committed){
+    }
+    return lt_id;
+}
+
+int has_key(struct instance_id *id, struct dependency *deps){
+    for(int i =0;i < MAX_DEPS;i++){
+        if(eq_instance_id(id, &deps[i].id)){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int equal_deps(struct dependency *deps1, struct dependency *deps2){
+    for(int i = 0; i < MAX_DEPS; i++){
+        if(!eq_instance_id(&deps1->id, &deps2->id) ||
+                deps1->committed != deps2->committed){
             return 0;
         }
         deps1++;
@@ -66,7 +87,7 @@ int equal_deps(struct dependency *deps1, struct dependency *deps2){
 void update_recovery_instance(struct recovery_instance *ri, struct message *m,
         int leader_replied, int pa_count){
     ri->command = m->command;
-    memcpy(ri->deps, m->deps, size(m->deps));
+    memcpy(ri->deps, m->deps, DEPSIZE);
     ri->seq = m->seq;
     ri->status = m->instance_status;
     ri->leader_replied = leader_replied;
@@ -81,17 +102,20 @@ int intcmp(struct instance *e1, struct instance *e2)
 LLRB_GENERATE(instance_index, instance, entry, intcmp);
 
 int update_deps(struct dependency *deps, struct dependency* d) {
-    int updated = 0;
-    if(deps[d->id.replica_id].id.instance_id == 0){
-        deps[d->id.replica_id].id = d->id;
-        deps[d->id.replica_id].committed = d->committed;
-        updated++;
-    } else if(deps[d->id.replica_id].id.instance_id <= d->id.instance_id){
-        deps[d->id.replica_id].id = d->id;
-        deps[d->id.replica_id].committed = d->committed;
-        updated++;
+    int f_index = -1;
+    for(int i = 0;i < MAX_DEPS;i++){
+        if(deps[i].id.instance_id == 0 && f_index < 0){
+            f_index = i;
+            continue;
+        }
+        if(eq_instance_id(&deps[i].id, &d->id)){
+            return 0;
+        }
     }
-    return updated;
+    if(f_index < 0) return -1;
+    deps[f_index].id = d->id;
+    deps[f_index].committed = d->committed;
+    return 1;
 }
 
 int add_dep(struct dependency *deps, struct instance *i){
@@ -114,7 +138,7 @@ void timer_reset(struct timer *t, int time_out){
 }
 
 int is_committed(struct instance *i){
-    return (i->status == COMMITTED);
+    return (i->status >= COMMITTED);
 }
 
 int has_uncommitted_deps(struct instance *i){
@@ -122,53 +146,6 @@ int has_uncommitted_deps(struct instance *i){
         if(i->deps[dc].committed == 0){
             return 1;
         }
-    }
-    return 0;
-}
-
-void noop_deps(struct instance_index *index, struct dependency *dep) {
-    struct instance *ti, *nxt;
-    nxt = LLRB_MAX(instance_index, index);
-    while(nxt){
-        ti = nxt;
-        nxt = LLRB_PREV(instance_index, index, nxt);
-        if(ti->status >= COMMITTED &&
-                ti->key.instance_id >= dep->id.instance_id){
-           dep->committed = 1;
-          return;
-        }
-    }
-}
-
-struct instance* pre_accept_conflict(struct instance_index *index,
-        struct instance *i, struct command *c,
-        uint64_t seq, struct dependency *deps){
-    struct instance *ti;
-    struct instance *nxt = LLRB_PREV(instance_index, index, i);
-    while(nxt){
-        ti = nxt;
-        nxt = LLRB_PREV(instance_index, index, nxt);
-        if(is_state(ti->status, EXECUTED)){
-            break;
-        }
-        if(ti->key.instance_id == deps[ti->key.replica_id].id.instance_id){
-            continue;
-        }
-        if(ti->command == 0){
-            continue;
-        }
-        if(ti->deps[i->key.replica_id].id.instance_id >= i->key.instance_id){
-            continue;
-        }
-        if(interferes(ti->command, c)){
-            if((ti->key.instance_id > deps[ti->key.replica_id].id.instance_id) ||
-                ((ti->key.instance_id < deps[ti->key.replica_id].id.instance_id) &&
-                 (ti->seq >= seq) && ((ti->key.replica_id != i->key.replica_id) ||
-                     ti->status > PRE_ACCEPTED_EQ))){
-                return ti;
-            }
-         }
-
     }
     return 0;
 }

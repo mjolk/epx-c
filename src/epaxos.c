@@ -1,5 +1,5 @@
 /**
- * File   : src/epaxos.c
+ * File   : epaxos.c
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 06 sep 2018 03:39
@@ -52,7 +52,7 @@ void recover(struct replica *r, struct instance *i, struct message *m) {
     i->lt->ri.status = i->status;
     i->lt->ri.command = i->command;
     i->lt->ri.seq = i->seq;
-    memcpy(i->lt->ri.deps, i->deps, size(i->deps));
+    memcpy(i->lt->ri.deps, i->deps, DEPSIZE);
     i->ballot = larger_ballot(i->ballot, r->id);
     m->ballot = i->ballot;
     m->id = i->key;
@@ -68,13 +68,13 @@ void phase1(struct replica *r, struct instance *i, struct message *m){
     struct seq_deps_probe p = {
         .updated = 0,
     };
-    memcpy(p.deps, m->deps, size(m->deps));
+    memcpy(p.deps, m->deps, DEPSIZE);
     i->seq = sd_for_command(r, m->command, &i->key, &p) + 1;
     i->status = PRE_ACCEPTED;
-    memcpy(i->deps, p.deps, size(p.deps));
+    memcpy(i->deps, p.deps, DEPSIZE);
     m->seq = i->seq;
     m->command = i->command;
-    memcpy(m->deps, i->deps, size(i->deps));
+    memcpy(m->deps, i->deps, DEPSIZE);
     m->ballot = i->ballot;
     m->id = i->key;
     send_pre_accept(r, m);
@@ -86,7 +86,7 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
     struct seq_deps_probe p = {
         .updated = 0
     };
-    memcpy(p.deps, i->deps, size(i->deps));
+    memcpy(p.deps, i->deps, DEPSIZE);
     uint64_t nseq = max_seq(m->seq, (sd_for_command(r, i->command, &i->key,
                     &p) + 1));
     if(m->ballot < i->ballot){
@@ -94,7 +94,7 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
         m->command = i->command;
         m->seq = i->seq;
         m->nack = 1;
-        memcpy(m->deps, i->deps, size(i->deps));
+        memcpy(m->deps, i->deps, DEPSIZE);
         send_pre_accept_reply(r, m);
         return;
     }
@@ -103,7 +103,7 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
     }
     i->command = m->command;
     i->ballot = m->ballot;
-    memcpy(i->deps, p.deps, size(p.deps));
+    memcpy(i->deps, p.deps, DEPSIZE);
     i->seq = nseq;
     if(i->command == 0){
         //TODO barrier
@@ -112,7 +112,7 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
     if(i->seq != m->seq || p.updated ||
             has_uncommitted_deps(i) || !is_initial_ballot(m->ballot)){
         m->seq = nseq;
-        memcpy(m->deps, i->deps, size(i->deps));
+        memcpy(m->deps, i->deps, DEPSIZE);
         send_pre_accept_reply(r, m);
         return;
     }
@@ -188,7 +188,7 @@ void accept(struct replica *r, struct instance *i, struct message *m){
     i->status = ACCEPTED;
     i->ballot = m->ballot;
     i->seq = m->seq;
-    memcpy(i->deps, m->deps, size(m->deps));
+    memcpy(i->deps, m->deps, DEPSIZE);
     if(m->command == 0){
         //TODO barrier
     }
@@ -230,7 +230,7 @@ void prepare(struct replica *r, struct instance *i, struct message *m){
         i->ballot = m->ballot;
     }
     m->command = i->command;
-    memcpy(m->deps, i->deps, size(i->deps));
+    memcpy(m->deps, i->deps, DEPSIZE);
     m->seq = i->seq;
     m->ballot = i->ballot;
     m->instance_status = i->status;
@@ -248,7 +248,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         cancel_timeout(i);
         i->status = COMMITTED;
         i->seq = m->seq;
-        memcpy(i->deps, m->deps, size(m->deps));
+        memcpy(i->deps, m->deps, DEPSIZE);
         i->command = m->command;
         m->ballot = i->ballot;
         send_commit(r, m);
@@ -286,7 +286,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         m->deps[m->id.replica_id].id.instance_id = m->id.instance_id -1;
         i->lt->recovery_status = NONE;
         i->status = ACCEPTED;
-        memcpy(i->deps, m->deps, size(m->deps));
+        memcpy(i->deps, m->deps, DEPSIZE);
         m->command = 0;
         init_timeout(i);
         send_accept(r, m);
@@ -297,11 +297,11 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
                  is_state(ri.status, PRE_ACCEPTED_EQ)))){
         i->command = ri.command;
         i->seq = ri.seq;
-        memcpy(i->deps, ri.deps, size(ri.deps));
+        memcpy(i->deps, ri.deps, DEPSIZE);
         i->status = ACCEPTED;
         i->lt->recovery_status = NONE;
         m->ballot = i->ballot;
-        memcpy(m->deps, i->deps, size(i->deps));
+        memcpy(m->deps, i->deps, DEPSIZE);
         m->seq = i->seq;
         init_timeout(i);
         send_accept(r, m);
@@ -327,13 +327,13 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         } else{
             i->command = ri.command;
             i->seq = ri.seq;
-            memcpy(i->deps, ri.deps, size(ri.deps));
+            memcpy(i->deps, ri.deps, DEPSIZE);
             i->status = PRE_ACCEPTED;
             i->lt->pre_accept_oks = 1;
         }
         i->lt->recovery_status = TRY_PRE_ACCEPTING;
         m->command = i->command;
-        memcpy(m->deps, i->deps, size(i->deps));
+        memcpy(m->deps, i->deps, DEPSIZE);
         m->seq = i->seq;
         m->ballot = i->ballot;
         init_timeout(i);
@@ -369,7 +369,7 @@ void try_pre_accept(struct replica *r, struct instance *i, struct message *m){
         send_try_pre_accept_reply(r, m);
     } else {
         i->command = m->command;
-        memcpy(i->deps, m->deps, size(m->deps));
+        memcpy(i->deps, m->deps, DEPSIZE);
         i->ballot = m->ballot;
         i->seq = m->seq;
         i->status = PRE_ACCEPTED;
@@ -437,8 +437,8 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
         ++i->lt->try_pre_accept_oks;
         if(i->lt->pre_accept_oks >= N/2){
             i->command = m->command = ri.command;
-            memcpy(i->deps, ri.deps, size(ri.deps));
-            memcpy(m->deps, ri.deps, size(ri.deps));
+            memcpy(i->deps, ri.deps, DEPSIZE);
+            memcpy(m->deps, ri.deps, DEPSIZE);
             i->seq = m->seq = ri.seq;
             i->status = m->instance_status = ACCEPTED;
             i->lt->accept_oks = 0;
@@ -455,7 +455,7 @@ void commit(struct replica *r, struct instance *i, struct message *m){
     i->status = COMMITTED;
     send_exec(r, m);
     i->seq = m->seq;
-    memcpy(i->deps, m->deps, size(m->deps));
+    memcpy(i->deps, m->deps, DEPSIZE);
 }
 
 void progress(struct replica *r, struct instance *i, struct message *m){

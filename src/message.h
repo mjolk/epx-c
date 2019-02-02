@@ -41,7 +41,7 @@ struct message {
     struct instance_id id;
     struct command *command;
     uint64_t seq;
-    struct dependency deps[N];
+    struct dependency deps[MAX_DEPS];
     size_t from;
     enum state instance_status;
     struct {

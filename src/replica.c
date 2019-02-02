@@ -1,5 +1,5 @@
 /**
- * File   : src/replica.c
+ * File   : replica.c
  * License: MIT/X11
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 06 sep 2018 20:21
@@ -155,7 +155,7 @@ struct instance* find_instance(struct replica *r,
 
 uint64_t sd_for_command(struct replica *r, struct command *c,
         struct instance_id *ignore, struct seq_deps_probe *p) {
-    uint64_t mseq;
+    uint64_t mseq = 0;
     for(int rc = 0;rc < N;rc++) {
         if(c == 0){
             noop_deps(&r->index[rc], &p->deps[rc]);
