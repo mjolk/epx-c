@@ -75,17 +75,17 @@ char *setup[8][2] = {
 
 int main(){
     struct instance_index index;
+    //struct instance *dep_inst;
     LLRB_INIT(&index);
     for(int c = 0;c < 8;c++){
         struct instance *i = create_instance(2, setup[c][0], setup[c][1], WRITE);
         i->key.instance_id = c;
+        i->key.replica_id = 1;
+        if(c == 7){
+            i->status = COMMITTED;
+      //      dep_inst = i;
+        }
         LLRB_INSERT(instance_index, &index, i);
-    }
-    struct instance *inst;
-    LLRB_FOREACH(inst, instance_index, &index){
-        printf("instance id: %"PRIu64" start_key: %s end_key: %s\n",
-                inst->key.instance_id, inst->command->span.start_key,
-                inst->command->span.end_key);
     }
     struct command cmd = {
         .id = 1,
@@ -98,11 +98,18 @@ int main(){
         .updated = 0
     };
     uint64_t seq = seq_deps_for_command(&index, &cmd, 0, &p);
-    printf("next sequence nr: %" PRIu64 "dependencies updated: %d\n",
-            seq, p.updated);
-    for(int i = 0;i < MAX_DEPS;i++){
-        printf("dep instance_id: %" PRIu64 "\n", p.deps[i].id.instance_id);
-    }
+    assert(p.updated == 1);
+    assert(p.deps[0].id.instance_id == 7);
+    assert(p.deps[1].id.instance_id == 3);
+    p.deps[0].committed = 0;
+    noop_deps(&index, 1, p.deps);
+    assert(p.deps[0].committed == 1);
+    strncpy(cmd.span.start_key, "30", KEY_SIZE);
+    strncpy(cmd.span.end_key, "40", KEY_SIZE);
+    strncpy(cmd.span.max, "00", KEY_SIZE);
+    //TODO
+    /*struct instance *pac_inst = pre_accept_conflict(&index, dep_inst, &cmd, 0,
+            p.deps);*/
     return 0;
 }
 

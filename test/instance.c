@@ -62,7 +62,7 @@ int main(){
     assert(is_state(PREPARING, (PRE_ACCEPTED | PRE_ACCEPTED_EQ)) == 0);
     tdeps[MAX_DEPS-1].id.instance_id = 0;
     struct instance_id nid = {
-        .instance_id = 1006,
+        .instance_id = 1009,
         .replica_id = 1
     };
     struct dependency ndep = {
@@ -70,7 +70,7 @@ int main(){
        .committed = 0
     };
     assert(update_deps(tdeps, &ndep) > 0);
-    assert(tdeps[MAX_DEPS-1].id.instance_id == 1006);
+    assert(tdeps[MAX_DEPS-1].id.instance_id == 1009);
     assert(tdeps[MAX_DEPS-1].committed == 0);
     assert(update_deps(tdeps, &ndep) == 0);
     struct instance *i = create_instance(1, "10", "20", WRITE);

@@ -29,3 +29,11 @@ add_test(NAME instance COMMAND instance_test)
 add_executable(index_test index.c)
 target_link_libraries(index_test epx)
 add_test(NAME index COMMAND index_test)
+
+add_executable(replica_test replica.c)
+target_link_libraries(replica_test epx)
+add_test(NAME replica COMMAND replica_test)
+
+add_executable(epaxos_test epaxos.c)
+target_link_libraries(epaxos_test epx)
+add_test(NAME epaxos COMMAND epaxos_test)

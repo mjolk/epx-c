@@ -75,7 +75,7 @@ int listen(int port) {
 coroutine void tclock(struct node *n){
     struct message *m;
     while(n->running){
-        chsend(n->r.chan_tick[0], m, MSG_SIZE, 20);
+        chsend(n->r.chan_tick[0], &m, MSG_SIZE, 20);
         msleep(now() + n->amplitude);
     }
 }
@@ -84,7 +84,7 @@ coroutine void nrecv_int(struct node *n){
     struct message *m;
     while(n->running){
         if((m = chan_recv(&n->chan_ii))){
-            chsend(n->r.chan_ii[0], m, MSG_SIZE, 20);
+            chsend(n->r.chan_ii[0], &m, MSG_SIZE, 20);
         }
     }
 }
@@ -93,7 +93,7 @@ coroutine void nrecv_ext(struct node *n){
     struct message *m;
     while(n->running){
         if((m = chan_recv(&n->chan_ei))){
-            chsend(n->r.chan_propose[0], m, MSG_SIZE, 20);
+            chsend(n->r.chan_propose[0], &m, MSG_SIZE, 20);
         }
     }
 }

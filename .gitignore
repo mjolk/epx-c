@@ -2,6 +2,6 @@ build
 .vimrc
 .gitmodules
 *.swp
-tags
+.tags
 *.json
 *.vim

@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 int send_io(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_io[1], m, MSG_SIZE, 10);
+    int rc = chsend(r->chan_io[1], &m, MSG_SIZE, 10);
     if(rc < 0){
         return -1;
     }
@@ -17,7 +17,7 @@ int send_io(struct replica *r, struct message *m){
 }
 
 int send_eo(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_eo[1], m, MSG_SIZE, 10);
+    int rc = chsend(r->chan_eo[1], &m, MSG_SIZE, 10);
     if(rc < 0){
         return -1;
     }
@@ -25,7 +25,7 @@ int send_eo(struct replica *r, struct message *m){
 }
 
 int send_exec(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_exec[1], m, MSG_SIZE, 10);
+    int rc = chsend(r->chan_exec[1], &m, MSG_SIZE, 10);
     if(rc < 0){
         return -1;
     }
@@ -91,10 +91,34 @@ int new_replica(struct replica *r){
     if(chmake(r->chan_eo) !=0) goto error;
     if(chmake(r->chan_exec) !=0) goto error;
     r->dh = kh_init(deferred);
+    SIMPLEQ_INIT(&r->timers);
+    for(int i = 0;i < N;i++){
+        LLRB_INIT(&r->index[i]);
+    }
     return 0;
 error:
     perror("problem creating replica\n");
     return -1;
+}
+
+void destroy_replica(struct replica *r){
+    r->running = 0;
+    hclose(r->chan_tick[0]);
+    hclose(r->chan_tick[1]);
+    hclose(r->chan_propose[0]);
+    hclose(r->chan_propose[1]);
+    hclose(r->chan_ii[0]);
+    hclose(r->chan_ii[1]);
+    hclose(r->chan_io[0]);
+    hclose(r->chan_io[1]);
+    hclose(r->chan_eo[0]);
+    hclose(r->chan_eo[1]);
+    hclose(r->chan_exec[0]);
+    hclose(r->chan_exec[1]);
+    kh_destroy(deferred, r->dh);
+    for(int i = 0;i < N;i++){
+        LLRB_DESTROY(instance_index, &r->index[i], destroy_instance);
+    }
 }
 
 int trigger(struct timer *t){
@@ -156,9 +180,9 @@ struct instance* find_instance(struct replica *r,
 uint64_t sd_for_command(struct replica *r, struct command *c,
         struct instance_id *ignore, struct seq_deps_probe *p) {
     uint64_t mseq = 0;
-    for(int rc = 0;rc < N;rc++) {
+    for(size_t rc = 0;rc < N;rc++) {
         if(c == 0){
-            noop_deps(&r->index[rc], &p->deps[rc]);
+            noop_deps(&r->index[rc], rc, p->deps);
         }
         mseq = max_seq(mseq, seq_deps_for_command(&r->index[rc], c, ignore, p));
     }
@@ -185,5 +209,7 @@ struct instance* pac_conflict(struct replica *r, struct instance *i,
 }
 
 uint64_t max_local(struct replica *r) {
-    return LLRB_MAX(instance_index, &r->index[r->id])->key.instance_id;
+    struct instance *i = LLRB_MAX(instance_index, &r->index[r->id]);
+    if(i == 0) return 0;
+    return i->key.instance_id;
 }

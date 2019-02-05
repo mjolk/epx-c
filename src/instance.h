@@ -85,4 +85,5 @@ uint8_t unique_ballot(uint8_t, size_t);
 int has_uncommitted_deps(struct instance *i);
 int is_committed(struct instance*);
 int has_key(struct instance_id*, struct dependency*);
-uint64_t lt_replica_id(size_t, struct dependency*);
+int lt_dep(size_t, struct dependency*);
+void destroy_instance(struct instance*);

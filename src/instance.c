@@ -24,11 +24,28 @@ struct message *message_from_instance(struct instance *i){
 struct instance *instance_from_message(struct message *m){
     struct instance *i = malloc(sizeof(struct instance));
     if(i == 0){ errno = ENOMEM; return 0;};
+    for(int ld = 0;ld < MAX_DEPS;ld++){
+        i->deps[ld].id.instance_id = 0;
+        i->deps[ld].id.replica_id = 0;
+        i->deps[ld].committed = 0;
+    }
+    i->ballot = m->ballot;
     i->command = m->command;
     i->key = m->id;
     i->seq = m->seq;
     i->status = NONE;
+    i->lt = 0;
     return i;
+}
+
+void destroy_instance(struct instance *i){
+    if(i->command){
+        free(i->command);
+    }
+    if(i->lt){
+        free(i->lt);
+    }
+    free(i);
 }
 
 int is_state(enum state state_a, enum state state_b){
@@ -51,16 +68,17 @@ size_t replica_from_ballot(uint8_t ballot){
     return ballot & 15;
 }
 
-uint64_t lt_replica_id(size_t replica_id,
-        struct dependency *deps){
-    uint64_t lt_id = 0;
+int lt_dep(size_t replica_id, struct dependency *deps){
+    int idx = 0;
+    uint64_t inst_id = 0;
     for(int i = 0;i < MAX_DEPS;i++){
         if(replica_id == deps->id.replica_id &&
-                deps->id.instance_id > lt_id){
-            lt_id = deps->id.instance_id;
+                deps->id.instance_id > inst_id){
+            inst_id = deps->id.instance_id;
+            idx = i;
         }
     }
-    return lt_id;
+    return idx;
 }
 
 int has_key(struct instance_id *id, struct dependency *deps){
@@ -72,7 +90,22 @@ int has_key(struct instance_id *id, struct dependency *deps){
     return 0;
 }
 
+void sort_deps(struct dependency *deps){
+    int j = 0;
+    for(int i = 1;i < MAX_DEPS;i++){
+        struct dependency d = deps[i];
+        j = i - 1;
+        while(j >= 0 && deps[j].id.instance_id < d.id.instance_id ){
+            deps[j +1] = deps[j];
+            j--;
+        }
+        deps[j+1] = d;
+    }
+}
+
 int equal_deps(struct dependency *deps1, struct dependency *deps2){
+    sort_deps(deps1);
+    sort_deps(deps2);
     for(int i = 0; i < MAX_DEPS; i++){
         if(!eq_instance_id(&deps1->id, &deps2->id) ||
                 deps1->committed != deps2->committed){
@@ -96,12 +129,14 @@ void update_recovery_instance(struct recovery_instance *ri, struct message *m,
 
 int intcmp(struct instance *e1, struct instance *e2)
 {
-    return (e1->key.instance_id < e2->key.instance_id ? -1 : e1->key.instance_id > e2->key.instance_id);
+    return (e1->key.instance_id < e2->key.instance_id ? -1 :
+            e1->key.instance_id > e2->key.instance_id);
 }
 
 LLRB_GENERATE(instance_index, instance, entry, intcmp);
 
 int update_deps(struct dependency *deps, struct dependency* d) {
+    if(d->id.instance_id == 0) return 0;
     int f_index = -1;
     for(int i = 0;i < MAX_DEPS;i++){
         if(deps[i].id.instance_id == 0 && f_index < 0){
@@ -142,7 +177,8 @@ int is_committed(struct instance *i){
 }
 
 int has_uncommitted_deps(struct instance *i){
-    for(int dc = 0;dc < N;dc++){
+    for(int dc = 0;dc < MAX_DEPS;dc++){
+        if(i->deps[dc].id.instance_id == 0) continue;
         if(i->deps[dc].committed == 0){
             return 1;
         }
@@ -151,7 +187,7 @@ int has_uncommitted_deps(struct instance *i){
 }
 
 void instance_reset(struct instance *i){
-    for(int d = 0;d < N;d++){
+    for(int d = 0;d < MAX_DEPS;d++){
         i->deps[d].committed = 0;
         i->deps[d].id.instance_id = 0;
     }

@@ -50,3 +50,4 @@ int send_prepare(struct replica*, struct message*);
 int send_prepare_reply(struct replica*, struct message*);
 int send_try_pre_accept(struct replica*, struct message*);
 int send_try_pre_accept_reply(struct replica*, struct message*);
+void destroy_replica(struct replica*);

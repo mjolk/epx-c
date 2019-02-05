@@ -14,8 +14,9 @@ int spcmp(struct span *sp1, struct span *sp2){
     return strncmp(sp1->start_key, sp2->start_key, KEY_SIZE);
 }
 
-SLL_HEAD(span_group, span) ml;
 LLRB_HEAD(span_tree, span) rt;
+LLRB_PROTOTYPE(span_tree, span, entry, spcmp)
+SLL_HEAD(span_group, span) ml;
 LLRB_GENERATE(span_tree, span, entry, spcmp);
 LLRB_RANGE_GROUP_GEN(span_tree, span, entry, span_group, next);
 
@@ -37,7 +38,7 @@ void merge(struct span *to_merge, struct span_group *sll){
             }
             SLL_REMOVE_AFTER(prev, next);
             LLRB_DELETE(span_tree, &rt, c);
-        } else {
+        }else{
             prev = c;
         }
     }
@@ -85,7 +86,7 @@ uint64_t seq_deps_for_command(
                         break;
                     }
                 }
-            } else if(!LLRB_RANGE_OVERLAPS(span_tree, &rt, &ti->command->span)){
+            }else if(!LLRB_RANGE_OVERLAPS(span_tree, &rt, &ti->command->span)){
                 probe->updated = add_dep(probe->deps, ti);
             }
         }
@@ -93,15 +94,17 @@ uint64_t seq_deps_for_command(
     return mseq;
 }
 
-void noop_deps(struct instance_index *index, struct dependency *dep) {
+void noop_deps(struct instance_index *index, size_t replica_id,
+        struct dependency *deps) {
     struct instance *ti, *nxt;
+    int idx = lt_dep(replica_id, deps);
     nxt = LLRB_MAX(instance_index, index);
     while(nxt){
         ti = nxt;
         nxt = LLRB_PREV(instance_index, index, nxt);
         if(ti->status >= COMMITTED &&
-                ti->key.instance_id >= dep->id.instance_id){
-            dep->committed = 1;
+                ti->key.instance_id >= deps[idx].id.instance_id){
+            deps[idx].committed = 1;
             return;
         }
     }
@@ -111,7 +114,7 @@ struct instance* pre_accept_conflict(struct instance_index *index,
         struct instance *i, struct command *c,
         uint64_t seq, struct dependency *deps){
     struct instance *ti;
-    struct instance *nxt = LLRB_PREV(instance_index, index, i);
+    struct instance *nxt = LLRB_FIND(instance_index, index, i);
     while(nxt){
         ti = nxt;
         nxt = LLRB_PREV(instance_index, index, nxt);
@@ -124,14 +127,14 @@ struct instance* pre_accept_conflict(struct instance_index *index,
         if(ti->command == 0){
             continue;
         }
-        uint64_t lte_ikey = lt_replica_id(i->key.replica_id, ti->deps);
-        if(lte_ikey >= i->key.instance_id){
+        if(ti->deps[lt_dep(i->key.replica_id, ti->deps)].id.instance_id >=
+                i->key.instance_id){
             continue;
         }
         if(interferes(ti->command, c)){
-            uint64_t lte_tikey = lt_replica_id(ti->key.replica_id, deps);
-            if((ti->key.instance_id > lte_tikey) ||
-                    ((ti->key.instance_id < lte_tikey) &&
+            int didx = lt_dep(ti->key.replica_id, deps);
+            if((ti->key.instance_id > deps[didx].id.instance_id) ||
+                    ((ti->key.instance_id < deps[didx].id.instance_id) &&
                      (ti->seq >= seq) && ((ti->key.replica_id != i->key.replica_id) ||
                          ti->status > PRE_ACCEPTED_EQ))){
                 return ti;

@@ -44,13 +44,14 @@ epx_command_ref_t command_to_buffer(struct command *c, flatcc_builder_t *b) {
 }
 
 int overlaps(struct span *s1, struct span *s2){
-    int ret = (strncmp(s1->start_key, s2->end_key, KEY_SIZE) <= 0)&& (strncmp(s1->end_key, s2->start_key, KEY_SIZE) >= 0);
-    printf(" <-=------------ OVERLAPS------->>>> %d \n", ret);
+    int ret = (strncmp(s1->start_key, s2->end_key, KEY_SIZE) <= 0) &&
+        (strncmp(s1->end_key, s2->start_key, KEY_SIZE) >= 0);
     return ret;
 }
 
 int encloses(struct span *s1, struct span *s2){
-    return (strncmp(s1->start_key, s2->start_key, KEY_SIZE) <= 0) && (strncmp(s1->end_key, s2->end_key, KEY_SIZE) >= 0);
+    return (strncmp(s1->start_key, s2->start_key, KEY_SIZE) <= 0) &&
+        (strncmp(s1->end_key, s2->end_key, KEY_SIZE) >= 0);
 }
 
 int interferes(struct command *c1, struct command *c2) {

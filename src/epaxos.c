@@ -32,6 +32,16 @@ void init_fp_timeout(struct instance *i){
     timer_set(&i->ticker, 2);
     i->ticker.on = fast_path_timeout;
 }
+static inline void do_commit(struct replica *r, struct instance *i, struct message *m){
+    cancel_timeout(i);
+    i->status = COMMITTED;
+    m->type = COMMIT;
+    send_exec(r, m);
+    send_commit(r, m);
+    if(i->command->writing){
+        send_eo(r, m);
+    }
+}
 void progress(struct replica *r, struct instance*, struct message*);
 void recover(struct replica *r, struct instance *i, struct message *m) {
     init_timeout(i);
@@ -71,6 +81,7 @@ void phase1(struct replica *r, struct instance *i, struct message *m){
     memcpy(p.deps, m->deps, DEPSIZE);
     i->seq = sd_for_command(r, m->command, &i->key, &p) + 1;
     i->status = PRE_ACCEPTED;
+    i->lt->equal = !p.updated;
     memcpy(i->deps, p.deps, DEPSIZE);
     m->seq = i->seq;
     m->command = i->command;
@@ -125,13 +136,7 @@ void pre_accept_ok(struct replica *r, struct instance *i, struct message *m){
     ++i->lt->pre_accept_oks;
     if(i->lt->pre_accept_oks >= (N/2) && i->lt->equal &&
             !has_uncommitted_deps(i)){
-        cancel_timeout(i);
-        i->status = COMMITTED;
-        send_exec(r, m);
-        send_commit(r, m);
-        if(i->command->writing){
-            send_eo(r, m);
-        }
+        do_commit(r, i, m);
     } else if(i->lt->pre_accept_oks >= (N/2)){
         init_timeout(i);
         send_accept(r, m);
@@ -154,23 +159,17 @@ void pre_accept_reply(struct replica *r, struct instance *i, struct message *m){
     i->lt->equal = 0;
     if(m->seq > i->seq){
         i->seq = m->seq;
-        i->lt->equal += 1;
+        i->lt->equal = 1;
     }
-    for(int ds = 0; ds < N; ds++){
+    for(int ds = 0; ds < MAX_DEPS; ds++){
         i->lt->equal += update_deps(i->deps, &m->deps[ds]);
     }
     i->lt->equal = (i->lt->equal == 0)?1:0;
-    if(((i->lt->pre_accept_oks +1) >= N/2) && i->lt->equal
+    if((i->lt->pre_accept_oks >= N/2) && i->lt->equal
             && is_initial_ballot(i->ballot) && !has_uncommitted_deps(i)){
-        cancel_timeout(i);
-        i->status = COMMITTED;
-        send_exec(r, m);
-        send_commit(r, m);
-        if(i->command->writing){
-            send_eo(r, m);
-        }
+        do_commit(r, i, m);
         return;
-    } else if((i->lt->pre_accept_oks +1) >= (N/2)){
+    } else if(i->lt->pre_accept_oks >= (N/2)){
         init_timeout(i);
         send_accept(r, m);
     }
@@ -209,13 +208,7 @@ void accept_reply(struct replica *r, struct instance *i, struct message *m){
     }
     ++i->lt->accept_oks;
     if((i->lt->accept_oks+1) > N/2){
-        cancel_timeout(i);
-        i->status = COMMITTED;
-        send_exec(r, m);
-        send_commit(r, m);
-        if(i->command->writing){
-            send_eo(r, m);
-        }
+        do_commit(r, i, m);
     }
 }
 
@@ -251,6 +244,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         memcpy(i->deps, m->deps, DEPSIZE);
         i->command = m->command;
         m->ballot = i->ballot;
+        m->type = COMMIT;
         send_commit(r, m);
         send_exec(r, m);
         if(i->command->writing){
@@ -520,14 +514,27 @@ int step(struct replica *r, struct message *m) {
     return rg;
 }
 
+struct leader_tracker * new_tracker(){
+    struct leader_tracker *lt = malloc(sizeof(struct leader_tracker));
+    if(lt == 0) return 0;
+    lt->ri.status = NONE;
+    lt->accept_oks = 0;
+    lt->equal = 0;
+    lt->max_ballot = 0;
+    lt->nacks = 0;
+    lt->prepare_oks = 0;
+    lt->pre_accept_oks = 0;
+    lt->recovery_status = NONE;
+    lt->try_pre_accept_oks = 0;
+    return lt;
+}
+
 int propose(struct replica *r, struct message *m){
     m->type = PHASE1;
     struct instance *i = instance_from_message(m);
     if(i == 0) return -1;
-    struct leader_tracker *lt = malloc(sizeof(struct leader_tracker));
-    if(lt == 0) return -1;
-    i->lt->ri.status = NONE;
-    i->lt = lt;
+    i->lt = new_tracker();
+    if(i->lt == 0) return -1;
     i->key.instance_id = max_local(r) + 1;
     i->key.replica_id = r->id;
     int rg = 0;
