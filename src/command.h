@@ -22,9 +22,9 @@ struct range_group *merge_list;
 
 struct span {
     LLRB_ENTRY(span) entry;
-    char start_key[KEY_SIZE+1];
-    char end_key[KEY_SIZE+1];
-    char max[KEY_SIZE+1];
+    char start_key[KEY_SIZE];
+    char end_key[KEY_SIZE];
+    char max[KEY_SIZE];
     struct nxt next;
 };
 
@@ -32,7 +32,7 @@ struct command {
     struct span span;
     int id;
     enum io_t writing;
-    uint8_t value[VALUE_SIZE];
+    uint8_t *value;
 };
 
 int command_from_buffer(struct command*, const void*);

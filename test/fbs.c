@@ -31,7 +31,7 @@ int main(){
         .span = sp,
         .id = 1,
         .writing = WRITE,
-        .value = {0}
+        .value = 0
     };
     struct message m = {
         .type = PRE_ACCEPT,
@@ -72,7 +72,7 @@ int main(){
         .span = spd,
         .id = 0,
         .writing = READ,
-        .value = {0}
+        .value = 0
     };
     decoded.command = &dcmd;
     if(message_from_buffer(&decoded, b)){

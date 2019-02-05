@@ -514,7 +514,7 @@ int step(struct replica *r, struct message *m) {
     return rg;
 }
 
-struct leader_tracker * new_tracker(){
+struct leader_tracker *new_tracker(){
     struct leader_tracker *lt = malloc(sizeof(struct leader_tracker));
     if(lt == 0) return 0;
     lt->ri.status = NONE;
@@ -544,26 +544,25 @@ int propose(struct replica *r, struct message *m){
 }
 
 void run(struct replica *r){
-    int rc;
+    int rc = 0;
     r->running = 1;
-    struct message *nm;
+    struct message *m;
     struct chclause cls[] = {
-        {CHRECV, r->chan_tick[1], &nm, MSG_SIZE},/** advance time **/
-        {CHRECV, r->chan_ii[1], &nm, MSG_SIZE},/** churn **/
-        {CHRECV, r->chan_propose[1], &nm, MSG_SIZE} /** new io **/
+        {CHRECV, r->chan_tick[1], &m, MSG_SIZE},/** advance time **/
+        {CHRECV, r->chan_ii[1], &m, MSG_SIZE},/** churn **/
+        {CHRECV, r->chan_propose[1], &m, MSG_SIZE} /** new io **/
     };
     while(r->running && rc >= 0){
-        rc = 0;
         rc = choose(cls, 3, -1);
         switch(rc){
             case 0:
                 tick(r);
                 break;
             case 1:
-                rc = step(r, nm);
+                rc = step(r, m);
                 break;
             case 2:
-                rc = propose(r, nm);
+                rc = propose(r, m);
                 break;
         }
     }

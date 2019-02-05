@@ -11,7 +11,7 @@
 #include "llrb-interval/llrb-interval.h"
 
 int spcmp(struct span *sp1, struct span *sp2){
-    return strncmp(sp1->start_key, sp2->start_key, KEY_SIZE);
+    return strcmp(sp1->start_key, sp2->start_key);
 }
 
 LLRB_HEAD(span_tree, span) rt;
@@ -30,26 +30,17 @@ void merge(struct span *to_merge, struct span_group *sll){
         c = next;
         next = SLL_NEXT(next, next);
         if(overlaps(to_merge, c)){
-            if((strncmp(to_merge->start_key, c->start_key, KEY_SIZE) > 0)){
-                strncpy(to_merge->start_key, c->start_key, KEY_SIZE);
+            if((strcmp(to_merge->start_key, c->start_key) > 0)){
+                strcpy(to_merge->start_key, c->start_key);
             }
-            if(strncmp(to_merge->end_key, c->end_key, KEY_SIZE) < 0) {
-                strncpy(to_merge->end_key, c->end_key, KEY_SIZE);
+            if(strcmp(to_merge->end_key, c->end_key) < 0) {
+                strcpy(to_merge->end_key, c->end_key);
             }
             SLL_REMOVE_AFTER(prev, next);
             LLRB_DELETE(span_tree, &rt, c);
         }else{
             prev = c;
         }
-    }
-}
-
-void clear(){
-    struct span *s = LLRB_MIN(span_tree, &rt);
-    while(s){
-        struct span *c = s;
-        s = LLRB_NEXT(span_tree, &rt, s);
-        free(LLRB_DELETE(span_tree, &rt, c));
     }
 }
 
@@ -78,16 +69,16 @@ uint64_t seq_deps_for_command(
             if(ti->command->writing) {
                 if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
                             &ti->command->span, &ml, merge)){
-                    probe->updated = add_dep(probe->deps, ti);
-                    struct span *nsp = &ti->command->span;//stack: dangerous!!
-                    LLRB_INSERT(span_tree, &rt, nsp);
+                    probe->updated += add_dep(probe->deps, ti);
+                    struct span nsp = ti->command->span;
+                    LLRB_INSERT(span_tree, &rt, &nsp);
                     if(!LLRB_RANGE_GROUP_ADD(span_tree, &rt, &cmd->span, &ml,
                                 merge)){
                         break;
                     }
                 }
             }else if(!LLRB_RANGE_OVERLAPS(span_tree, &rt, &ti->command->span)){
-                probe->updated = add_dep(probe->deps, ti);
+                probe->updated += add_dep(probe->deps, ti);
             }
         }
     }

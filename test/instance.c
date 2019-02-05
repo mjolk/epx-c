@@ -13,15 +13,15 @@ struct dependency tdeps2[MAX_DEPS];
 struct instance *create_instance(size_t rid, const char *start_key,
         const char *end_key, enum io_t rw){
     struct span s;
-    strncpy(s.start_key, start_key, KEY_SIZE);
-    strncpy(s.end_key, end_key, KEY_SIZE);
+    strcpy(s.start_key, start_key);
+    strcpy(s.end_key, end_key);
     memset(s.max, 0, KEY_SIZE);
     struct command *cmd = malloc(sizeof(struct command));
     assert(cmd != 0);
     cmd->span = s;
     cmd->id = 1111;
     cmd->writing = rw;
-    memset(cmd->value, 0, VALUE_SIZE);
+    cmd->value = 0;
     struct instance *i = malloc(sizeof(struct instance));
     assert(i != 0);
     i->key.replica_id = rid;

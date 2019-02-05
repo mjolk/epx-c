@@ -33,22 +33,22 @@ void print_tree(struct span *n)
 struct instance *create_instance(size_t rid, const char *start_key,
         const char *end_key, enum io_t rw){
     struct span s;
-    strncpy(s.start_key, start_key, KEY_SIZE);
-    strncpy(s.end_key, end_key, KEY_SIZE);
-    memset(s.max, 0, KEY_SIZE);
+    strcpy(s.start_key, start_key);
+    strcpy(s.end_key, end_key);
+    strcpy(s.max, "00");
     struct command *cmd = malloc(sizeof(struct command));
     assert(cmd != 0);
     cmd->span = s;
     cmd->id = 1111;
     cmd->writing = rw;
-    memset(cmd->value, 0, VALUE_SIZE);
+    cmd->value = 0;
     struct instance *i = malloc(sizeof(struct instance));
     assert(i != 0);
     i->key.replica_id = rid;
     i->command = cmd;
     i->ballot = 1;
     i->lt = 0;
-    i->status = PRE_ACCEPTED;
+    i->status = ACCEPTED;
     return i;
 }
 
@@ -75,7 +75,7 @@ char *setup[8][2] = {
 
 int main(){
     struct instance_index index;
-    //struct instance *dep_inst;
+    struct instance *inst;
     LLRB_INIT(&index);
     for(int c = 0;c < 8;c++){
         struct instance *i = create_instance(2, setup[c][0], setup[c][1], WRITE);
@@ -83,7 +83,7 @@ int main(){
         i->key.replica_id = 1;
         if(c == 7){
             i->status = COMMITTED;
-      //      dep_inst = i;
+            inst = i;
         }
         LLRB_INSERT(instance_index, &index, i);
     }
@@ -91,25 +91,27 @@ int main(){
         .id = 1,
         .writing = WRITE
     };
-    strncpy(cmd.span.start_key, "02", KEY_SIZE);
-    strncpy(cmd.span.end_key, "09", KEY_SIZE);
-    strncpy(cmd.span.max, "00", KEY_SIZE);
+    strcpy(cmd.span.start_key, "02");
+    strcpy(cmd.span.end_key, "09");
+    strcpy(cmd.span.max, "00");
     struct seq_deps_probe p = {
         .updated = 0
     };
     uint64_t seq = seq_deps_for_command(&index, &cmd, 0, &p);
-    assert(p.updated == 1);
+    assert(p.updated > 0);
     assert(p.deps[0].id.instance_id == 7);
     assert(p.deps[1].id.instance_id == 3);
     p.deps[0].committed = 0;
     noop_deps(&index, 1, p.deps);
     assert(p.deps[0].committed == 1);
-    strncpy(cmd.span.start_key, "30", KEY_SIZE);
-    strncpy(cmd.span.end_key, "40", KEY_SIZE);
-    strncpy(cmd.span.max, "00", KEY_SIZE);
-    //TODO
-    /*struct instance *pac_inst = pre_accept_conflict(&index, dep_inst, &cmd, 0,
-            p.deps);*/
+    strcpy(cmd.span.start_key, "01");
+    strcpy(cmd.span.end_key, "03");
+    strcpy(cmd.span.max, "00");
+    p.deps[0].id.instance_id = 9;
+    p.deps[1].id.replica_id = 1;
+    struct instance *pac_inst = pre_accept_conflict(&index, inst, &cmd, 0,
+      p.deps);
+    assert(pac_inst->key.instance_id == 0);
     return 0;
 }
 
