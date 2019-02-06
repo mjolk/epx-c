@@ -32,16 +32,19 @@ void init_fp_timeout(struct instance *i){
     timer_set(&i->ticker, 2);
     i->ticker.on = fast_path_timeout;
 }
+
 static inline void do_commit(struct replica *r, struct instance *i, struct message *m){
     cancel_timeout(i);
     i->status = COMMITTED;
     m->type = COMMIT;
     send_exec(r, m);
-    send_commit(r, m);
+    m->type = COMMIT;
+    send_io(r, m);
     if(i->command->writing){
         send_eo(r, m);
     }
 }
+
 void progress(struct replica *r, struct instance*, struct message*);
 void recover(struct replica *r, struct instance *i, struct message *m) {
     init_timeout(i);
@@ -68,7 +71,8 @@ void recover(struct replica *r, struct instance *i, struct message *m) {
     m->id = i->key;
     m->command = i->command;
     m->seq = i->seq;
-    send_prepare(r, m);
+    m->type = PREPARE;
+    send_io(r, m);
 }
 
 void phase1(struct replica *r, struct instance *i, struct message *m){
@@ -88,7 +92,8 @@ void phase1(struct replica *r, struct instance *i, struct message *m){
     memcpy(m->deps, i->deps, DEPSIZE);
     m->ballot = i->ballot;
     m->id = i->key;
-    send_pre_accept(r, m);
+    m->type = PRE_ACCEPT;
+    send_io(r, m);
 }
 
 void pre_accept(struct replica *r, struct instance *i, struct message *m){
@@ -106,7 +111,8 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
         m->seq = i->seq;
         m->nack = 1;
         memcpy(m->deps, i->deps, DEPSIZE);
-        send_pre_accept_reply(r, m);
+        m->type = PRE_ACCEPT_REPLY;
+        send_io(r, m);
         return;
     }
     if(!p.updated){
@@ -124,10 +130,12 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
             has_uncommitted_deps(i) || !is_initial_ballot(m->ballot)){
         m->seq = nseq;
         memcpy(m->deps, i->deps, DEPSIZE);
-        send_pre_accept_reply(r, m);
+        m->type = PRE_ACCEPT_REPLY;
+        send_io(r, m);
         return;
     }
-    send_pre_accept_ok(r, m);
+    m->type = PRE_ACCEPT_OK;
+    send_io(r, m);
 }
 
 void pre_accept_ok(struct replica *r, struct instance *i, struct message *m){
@@ -139,7 +147,8 @@ void pre_accept_ok(struct replica *r, struct instance *i, struct message *m){
         do_commit(r, i, m);
     } else if(i->lt->pre_accept_oks >= (N/2)){
         init_timeout(i);
-        send_accept(r, m);
+        m->type = ACCEPT;
+        send_io(r, m);
     }
 }
 
@@ -171,7 +180,9 @@ void pre_accept_reply(struct replica *r, struct instance *i, struct message *m){
         return;
     } else if(i->lt->pre_accept_oks >= (N/2)){
         init_timeout(i);
-        send_accept(r, m);
+        i->status = ACCEPTED;
+        m->type = ACCEPT;
+        send_io(r, m);
     }
 }
 
@@ -181,7 +192,8 @@ void accept(struct replica *r, struct instance *i, struct message *m){
     if(m->ballot < i->ballot){
         m->nack = 1;
         m->ballot = i->ballot;
-        send_accept_reply(r, m);
+        m->type = ACCEPT_REPLY;
+        send_io(r, m);
         return;
     }
     i->status = ACCEPTED;
@@ -191,7 +203,8 @@ void accept(struct replica *r, struct instance *i, struct message *m){
     if(m->command == 0){
         //TODO barrier
     }
-    send_accept_reply(r, m);
+    m->type = ACCEPT_REPLY;
+    send_io(r, m);
 }
 
 void accept_reply(struct replica *r, struct instance *i, struct message *m){
@@ -207,7 +220,7 @@ void accept_reply(struct replica *r, struct instance *i, struct message *m){
         return;
     }
     ++i->lt->accept_oks;
-    if((i->lt->accept_oks+1) > N/2){
+    if(i->lt->accept_oks > N/2){
         do_commit(r, i, m);
     }
 }
@@ -216,7 +229,8 @@ void prepare(struct replica *r, struct instance *i, struct message *m){
     m->from = r->id;
     if(m->ballot < i->ballot){
         m->nack = 1;
-        send_prepare_reply(r, m);
+        m->type = PREPARE_REPLY;
+        send_io(r, m);
         return;
 
     } else {
@@ -227,7 +241,8 @@ void prepare(struct replica *r, struct instance *i, struct message *m){
     m->seq = i->seq;
     m->ballot = i->ballot;
     m->instance_status = i->status;
-    send_prepare_reply(r, m);
+    m->type = PREPARE_REPLY;
+    send_io(r, m);
 }
 
 void prepare_reply(struct replica *r, struct instance *i, struct message *m){
@@ -245,7 +260,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         i->command = m->command;
         m->ballot = i->ballot;
         m->type = COMMIT;
-        send_commit(r, m);
+        send_io(r, m);
         send_exec(r, m);
         if(i->command->writing){
             send_eo(r, m);
@@ -283,7 +298,8 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         memcpy(i->deps, m->deps, DEPSIZE);
         m->command = 0;
         init_timeout(i);
-        send_accept(r, m);
+        m->type = ACCEPT;
+        send_io(r, m);
         return;
     }
     if(is_state(ri.status, ACCEPTED) || ((ri.leader_replied == 0) &&
@@ -298,7 +314,8 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         memcpy(m->deps, i->deps, DEPSIZE);
         m->seq = i->seq;
         init_timeout(i);
-        send_accept(r, m);
+        m->type = ACCEPT;
+        send_io(r, m);
     } else if((ri.leader_replied == 0) && ri.pre_accept_count >= (N/2+1)/2){
         i->lt->pre_accept_oks = 0;
         i->lt->nacks = 0;
@@ -331,7 +348,8 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         m->seq = i->seq;
         m->ballot = i->ballot;
         init_timeout(i);
-        send_try_pre_accept(r, m);
+        m->type = TRY_PRE_ACCEPT;
+        send_io(r, m);
     } else {
         i->lt->recovery_status = NONE;
         m->type = PHASE1;
@@ -349,7 +367,8 @@ void try_pre_accept(struct replica *r, struct instance *i, struct message *m){
         m->conflict.status = i->status;
         m->ballot = i->ballot;
         m->nack = 1;
-        send_try_pre_accept_reply(r, m);
+        m->type = TRY_PRE_ACCEPT_REPLY;
+        send_io(r, m);
         return;
     }
     struct instance *conflict = pac_conflict(r, i, m->command, m->seq,
@@ -360,14 +379,16 @@ void try_pre_accept(struct replica *r, struct instance *i, struct message *m){
         m->conflict.status = conflict->status;
         m->ballot = i->ballot;
         m->nack = 1;
-        send_try_pre_accept_reply(r, m);
+        m->type = TRY_PRE_ACCEPT_REPLY;
+        send_io(r, m);
     } else {
         i->command = m->command;
         memcpy(i->deps, m->deps, DEPSIZE);
         i->ballot = m->ballot;
         i->seq = m->seq;
         i->status = PRE_ACCEPTED;
-        send_try_pre_accept_reply(r, m);
+        m->type = TRY_PRE_ACCEPT_REPLY;
+        send_io(r, m);
     }
 }
 
@@ -382,7 +403,8 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
         if(m->ballot > i->ballot){
             m->ballot = larger_ballot(m->ballot, r->id);
             init_timeout(i);
-            send_pre_accept(r, m);
+            m->type = PRE_ACCEPT;
+            send_io(r, m);
             return;
         }
         ++i->lt->try_pre_accept_oks;
@@ -391,7 +413,8 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
             i->lt->quorum[m->from] = 0;
             i->lt->quorum[m->conflict.replica_id] = 0;
             init_timeout(i);
-            send_prepare(r, m);
+            m->type = PREPARE;
+            send_io(r, m);
             return;
         }
         int nq = 0;
@@ -438,7 +461,8 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
             i->lt->accept_oks = 0;
             i->lt->recovery_status = NONE;
             init_timeout(i);
-            send_accept(r, m);
+            m->type = ACCEPT;
+            send_io(r, m);
         }
     }
 }
@@ -497,9 +521,10 @@ void slow_path_timeout(struct replica *r, struct timer *t) {
 }
 
 void fast_path_timeout(struct replica *r, struct timer *t) {
-    struct message *nm = message_from_instance(t->instance);
+    struct message *m = message_from_instance(t->instance);
     init_timeout(t->instance);
-    send_accept(r, nm);
+    m->type = ACCEPT;
+    send_io(r, m);
 }
 
 int step(struct replica *r, struct message *m) {

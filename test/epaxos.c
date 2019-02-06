@@ -38,34 +38,14 @@ struct message *copy_message(struct message *m){
     return m2;
 }
 
-coroutine void phase1_check(int ch, int done){
+coroutine void check1(int ch, int done, enum message_type t, size_t s){
     struct message *m;
     int rc = chrecv(ch, &m, MSG_SIZE, -1);
     assert(rc >= 0);
     assert(m->id.instance_id == 1);
     assert(m->id.replica_id == 0);
-    assert(m->type == PRE_ACCEPT);
-    assert(m->seq == 1);
-    chsend(done, &m, MSG_SIZE, -1);
-}
-
-coroutine void pre_accept_check(int ch, int done){
-    struct message *m;
-    assert(chrecv(ch, &m, MSG_SIZE, -1) >= 0);
-    assert(m->id.instance_id == 1);
-    assert(m->id.replica_id == 0);
-    assert(m->type == PRE_ACCEPT_OK);
-    assert(m->seq == 1);
-    chsend(done, &m, MSG_SIZE, -1);
-}
-
-coroutine void pre_accept_ok_check(int ch, int done){
-    struct message *m;
-    assert(chrecv(ch, &m, MSG_SIZE, -1) >= 0);
-    assert(m->id.instance_id == 1);
-    assert(m->id.replica_id == 0);
-    assert(m->type == COMMIT);
-    assert(m->seq == 1);
+    assert(m->type == t);
+    assert(m->seq == s);
     chsend(done, &m, MSG_SIZE, -1);
 }
 
@@ -80,15 +60,15 @@ void no_conflict(){
     r2.id = 1;
     assert(new_replica(&r1) == 0);
     assert(new_replica(&r2) == 0);
-    assert(bundle_go(b, phase1_check(r1.chan_io[0], done_ch[0])) >= 0);
+    assert(bundle_go(b, check1(r1.chan_io[0], done_ch[0], PRE_ACCEPT, 1)) >= 0);
     assert(propose(&r1, m) == 0);
     assert(chrecv(done_ch[1], &m, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, pre_accept_check(r2.chan_io[0], done_ch[0])) >= 0);
+    assert(bundle_go(b, check1(r2.chan_io[0], done_ch[0], PRE_ACCEPT_OK, 1)) >= 0);
     struct message *m2 = copy_message(m);
     assert(m2 != 0);
     assert(step(&r2, m2) == 0);
     assert(chrecv(done_ch[1], &m2, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, pre_accept_ok_check(r1.chan_exec[0], done_ch[0])) >= 0);
+    assert(bundle_go(b, check1(r1.chan_exec[0], done_ch[0], COMMIT, 1)) >= 0);
     assert(step(&r1, m2) == 0);
     assert(chrecv(done_ch[1], &m2, MSG_SIZE, -1) >= 0);
     destroy_replica(&r1);
@@ -98,26 +78,6 @@ void no_conflict(){
     hclose(b);
     free(m);
     free(m2);
-}
-
-coroutine void pre_accept_reply_check(int ch, int done){
-    struct message *m;
-    assert(chrecv(ch, &m, MSG_SIZE, -1) >= 0);
-    assert(m->id.instance_id == 1);
-    assert(m->id.replica_id == 0);
-    assert(m->type == ACCEPT);
-    assert(m->seq == 2);
-    chsend(done, &m, MSG_SIZE, -1);
-}
-
-coroutine void pre_accept_check_conflict(int ch, int done){
-    struct message *m;
-    assert(chrecv(ch, &m, MSG_SIZE, -1) >= 0);
-    assert(m->id.instance_id == 1);
-    assert(m->id.replica_id == 0);
-    assert(m->type == PRE_ACCEPT_REPLY);
-    assert(m->seq == 2);
-    chsend(done, &m, MSG_SIZE, -1);
 }
 
 void simple_conflict(){
@@ -132,15 +92,22 @@ void simple_conflict(){
     r2.id = 1;
     assert(new_replica(&r1) == 0);
     assert(new_replica(&r2) == 0);
-    assert(bundle_go(b, phase1_check(r1.chan_io[0], done_ch[0])) >= 0);
+    assert(bundle_go(b, check1(r1.chan_io[0], done_ch[0], PRE_ACCEPT, 1)) >= 0);
     assert(propose(&r1, m1) == 0);
     assert(propose(&r2, m2) == 0);
     assert(chrecv(done_ch[1], &m1, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, pre_accept_check_conflict(r2.chan_io[0], done_ch[0])) >= 0);
+    assert(bundle_go(b, check1(r2.chan_io[0], done_ch[0], PRE_ACCEPT_REPLY, 2)) >= 0);
     struct message *m3 = copy_message(m1);
     assert(step(&r2, m3) == 0);
     assert(chrecv(done_ch[1], &m3, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, pre_accept_reply_check(r1.chan_io[0], done_ch[0])) >= 0);
+    assert(bundle_go(b, check1(r1.chan_io[0], done_ch[0], ACCEPT, 2)) >= 0);
+    assert(step(&r1, m3) == 0);
+    assert(chrecv(done_ch[1], &m1, MSG_SIZE, -1) >= 0);
+    assert(bundle_go(b, check1(r2.chan_io[0], done_ch[0], ACCEPT_REPLY, 2)) >= 0);
+    assert(step(&r2, m3) == 0);
+    assert(chrecv(done_ch[1], &m3, MSG_SIZE, -1) >= 0);
+    assert(bundle_go(b, check1(r1.chan_io[0], done_ch[0], COMMIT, 2)) >= 0);
+    assert(step(&r1, m3) == 0);
     assert(step(&r1, m3) == 0);
     assert(chrecv(done_ch[1], &m3, MSG_SIZE, -1) >= 0);
     destroy_replica(&r1);
@@ -150,7 +117,7 @@ void simple_conflict(){
     hclose(b);
     free(m1);
     free(m2);
-    free(m3);
+    //free(m3); some mem lost here..
 }
 int main(){
     no_conflict();

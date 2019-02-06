@@ -32,56 +32,6 @@ int send_exec(struct replica *r, struct message *m){
     return rc;
 }
 
-int send_prepare(struct replica *r, struct message *m){
-    m->type = PREPARE;
-    return send_io(r, m);
-}
-
-int send_pre_accept(struct replica *r, struct message *m){
-    m->type = PRE_ACCEPT;
-    return send_io(r, m);
-}
-
-int send_try_pre_accept(struct replica *r, struct message *m){
-    m->type = TRY_PRE_ACCEPT;
-    return send_io(r, m);
-}
-
-int send_try_pre_accept_reply(struct replica *r, struct message *m){
-    m->type = TRY_PRE_ACCEPT_REPLY;
-    return send_io(r, m);
-}
-
-int send_pre_accept_reply(struct replica *r, struct message *m){
-    m->type = PRE_ACCEPT_REPLY;
-    return send_io(r, m);
-}
-
-int send_pre_accept_ok(struct replica *r, struct message *m){
-    m->type = PRE_ACCEPT_OK;
-    return send_io(r, m);
-}
-
-int send_accept(struct replica *r, struct message *m){
-    m->type = ACCEPT;
-    return send_io(r, m);
-}
-
-int send_commit(struct replica *r, struct message *m){
-    m->type = COMMIT;
-    return send_io(r, m);
-}
-
-int send_accept_reply(struct replica *r, struct message *m){
-    m->type = ACCEPT_REPLY;
-    return send_io(r, m);
-}
-
-int send_prepare_reply(struct replica *r, struct message *m){
-    m->type = PREPARE_REPLY;
-    return send_io(r, m);
-}
-
 int new_replica(struct replica *r){
     r->running = 0;
     if(chmake(r->chan_tick) != 0) goto error;
