@@ -45,8 +45,7 @@ struct message {
     size_t from;
     enum state instance_status;
     struct {
-        uint64_t instance_id;
-        size_t replica_id;
+        struct instance_id id;
         enum state status;
     } conflict;
     uint64_t start;

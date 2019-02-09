@@ -48,6 +48,7 @@ add_library(epx
 	fbs_sock.c
 	channel.c
 	node.c
+    execute.c
 	epx.c
 	)
 

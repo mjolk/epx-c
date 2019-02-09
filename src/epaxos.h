@@ -8,4 +8,4 @@
 #include "replica.h"
 
 void run(struct replica*);
-uint64_t dh_key(uint64_t, size_t);
+uint64_t dh_key(struct instance_id*);

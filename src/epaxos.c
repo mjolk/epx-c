@@ -8,10 +8,9 @@
 #include "epaxos.h"
 #include <stdio.h>
 
-uint64_t dh_key(uint64_t instance_id, size_t replica_id){
-    return (instance_id << 16) | replica_id;
+uint64_t dh_key(struct instance_id *id){
+    return (id->instance_id << 16) | id->replica_id;
 }
-
 void noop (struct replica *s, struct timer *t){
     return;
 }
@@ -362,8 +361,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
 
 void try_pre_accept(struct replica *r, struct instance *i, struct message *m){
     if(i->ballot > m->ballot){
-        m->conflict.instance_id = m->id.instance_id;
-        m->conflict.replica_id = m->id.replica_id;
+        m->conflict.id = m->id;
         m->conflict.status = i->status;
         m->ballot = i->ballot;
         m->nack = 1;
@@ -374,8 +372,7 @@ void try_pre_accept(struct replica *r, struct instance *i, struct message *m){
     struct instance *conflict = pac_conflict(r, i, m->command, m->seq,
             m->deps);
     if(conflict){
-        m->conflict.instance_id = conflict->key.instance_id;
-        m->conflict.replica_id = conflict->key.replica_id;
+        m->conflict.id = conflict->key;
         m->conflict.status = conflict->status;
         m->ballot = i->ballot;
         m->nack = 1;
@@ -408,10 +405,9 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
             return;
         }
         ++i->lt->try_pre_accept_oks;
-        if(m->conflict.instance_id == m->id.instance_id &&
-                m->conflict.replica_id == m->id.replica_id){
+        if(eq_instance_id(&m->conflict.id, &m->id)){
             i->lt->quorum[m->from] = 0;
-            i->lt->quorum[m->conflict.replica_id] = 0;
+            i->lt->quorum[m->conflict.id.replica_id] = 0;
             init_timeout(i);
             m->type = PREPARE;
             send_io(r, m);
@@ -429,8 +425,7 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
             progress(r, i, m);
         }
         if(nq == N/2){
-            khint_t k = kh_get(deferred, r->dh, dh_key(m->id.instance_id,
-                        m->id.replica_id));
+            khint_t k = kh_get(deferred, r->dh, dh_key(&m->id));
             if(k != kh_end(r->dh)){
                 if(i->lt->quorum[kh_val(r->dh, k)]){
                     i->lt->recovery_status = NONE;
@@ -443,8 +438,7 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
         }
         if(i->lt->try_pre_accept_oks > N/2){
             int rv;
-            khint_t k = kh_put(deferred, r->dh, dh_key(m->conflict.instance_id,
-                        m->conflict.replica_id), &rv);
+            khint_t k = kh_put(deferred, r->dh, dh_key(&m->conflict.id), &rv);
             kh_val(r->dh, k) = m->id.replica_id;
             init_timeout(i);
         }
