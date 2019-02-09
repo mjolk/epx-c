@@ -9,27 +9,15 @@
 #include <stdio.h>
 
 int send_io(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_io[1], &m, MSG_SIZE, 10);
-    if(rc < 0){
-        return -1;
-    }
-    return rc;
+    return chsend(r->chan_io[1], &m, MSG_SIZE, 10);
 }
 
 int send_eo(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_eo[1], &m, MSG_SIZE, 10);
-    if(rc < 0){
-        return -1;
-    }
-    return rc;
+    return chsend(r->chan_eo[1], &m, MSG_SIZE, 10);
 }
 
 int send_exec(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_exec[1], &m, MSG_SIZE, 10);
-    if(rc < 0){
-        return -1;
-    }
-    return rc;
+    return chsend(r->chan_exec[1], &m, MSG_SIZE, 10);
 }
 
 int new_replica(struct replica *r){
