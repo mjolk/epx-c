@@ -73,28 +73,17 @@ int listen(int port) {
 }
 
 coroutine void tclock(struct node *n){
-    struct message *m;
+    uint8_t m = 1;
     while(n->running){
-        chsend(n->r.chan_tick[0], &m, MSG_SIZE, 20);
+        chsend(n->r.chan_tick[0], &m, sizeof(uint8_t), 20);
         msleep(now() + n->amplitude);
     }
 }
 
 coroutine void nrecv_int(struct node *n){
     struct message *m;
-    while(n->running){
-        if((m = chan_recv(&n->chan_ii))){
+    while(n->running && chan_recv_spmc(&n->chan_ii, &m)){
             chsend(n->r.chan_ii[0], &m, MSG_SIZE, 20);
-        }
-    }
-}
-
-coroutine void nrecv_ext(struct node *n){
-    struct message *m;
-    while(n->running){
-        if((m = chan_recv(&n->chan_ei))){
-            chsend(n->r.chan_propose[0], &m, MSG_SIZE, 20);
-        }
     }
 }
 
@@ -102,7 +91,7 @@ coroutine void nsend_exec(struct node *n){
     struct message *m;
     while(n->running){
         if((chrecv(n->r.chan_exec[0], &m, MSG_SIZE, -1)) >= 0){
-            chan_send(&n->chan_exec, m);
+            chan_send_spsc(&n->chan_exec, m);
         }
     }
 }
@@ -111,7 +100,7 @@ coroutine void nsend_int(struct node *n){
     struct message *m;
     while(n->running){
         if((chrecv(n->r.chan_io[0], &m, MSG_SIZE, -1)) >= 0){
-            chan_send(&n->chan_io, m);
+            chan_send_spmc(&n->chan_io, m);
         }
     }
 }
@@ -120,7 +109,7 @@ coroutine void nsend_ext(struct node *n){
     struct message *m;
     while(n->running){
         if((chrecv(n->r.chan_eo[0], &m, MSG_SIZE, -1)) >= 0){
-            chan_send(&n->chan_eo, m);
+            chan_send_spmc(&n->chan_eo, m);
         }
     }
 }
@@ -141,16 +130,15 @@ int start(struct node *n){
     }
     n->running = 1;
     if(new_replica(&n->r) < 0) goto error;
-    if(chan_init(&n->chan_ei) < 0) goto error;
-    if(chan_init(&n->chan_eo) < 0) goto error;
-    if(chan_init(&n->chan_ii) < 0) goto error;
-    if(chan_init(&n->chan_io) < 0) goto error;
+    chan_init(&n->chan_ei);
+    chan_init(&n->chan_eo);
+    chan_init(&n->chan_ii);
+    chan_init(&n->chan_io);
     n->ap = bundle();
     if(n->ap < 0) goto error;
     int rc = 0;
     if(bundle_go(n->ap, tclock(n)) < 0) goto error;
     if(bundle_go(n->ap, nrecv_int(n)) < 0) goto error;
-    if(bundle_go(n->ap, nrecv_ext(n)) < 0) goto error;
     if(bundle_go(n->ap, nsend_ext(n)) < 0) goto error;
     if(bundle_go(n->ap, nsend_int(n)) < 0) goto error;
     if(bundle_go(n->ap, nsend_exec(n)) < 0) goto error;
@@ -167,24 +155,24 @@ void stop(struct node *n){
     hclose(n->ap);
 }
 
-struct message *read_int(struct node *n){
-    return chan_recv(&n->chan_io);
+int read_int(struct node *n, struct message *m){
+    return chan_recv_spmc(&n->chan_io, m);
 }
 
-struct message *read_ext(struct node *n){
-    return chan_recv(&n->chan_eo);
+int read_ext(struct node *n, struct message *m){
+    return chan_recv_spmc(&n->chan_eo, m);
 }
 
-void write_int(struct node *n, struct message *m){
-    chan_send(&n->chan_ii, m);
+int write_int(struct node *n, struct message *m){
+    return chan_send_mpsc(&n->chan_ii, m);
 }
 
-void write_ext(struct node *n, struct message *m){
-    chan_send(&n->chan_ei, m);
+int write_ext(struct node *n, struct message *m){
+    return chan_send_mpsc(&n->chan_ei, m);
 }
 
 int write_message(int ch, struct message *m){
-    return msend(ch, m, sizeof(struct message), 40);
+    return msend(ch, m, sizeof(struct message), 60);
 }
 
 struct message *read_message(int ch, int *rc){
@@ -368,9 +356,12 @@ report:
 
 }
 coroutine void internal_out(struct node *n, int rep){
-    struct message *m;
+    struct message *m = 0;
     while(n->running){
-        m = read_int(n);
+        if(!read_int(n, m)){
+            msleep(now() + 100);
+            continue;
+        }
         m->from = n->r.id;
         m->start = now();
         switch(m->type){

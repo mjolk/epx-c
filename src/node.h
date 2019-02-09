@@ -47,8 +47,8 @@ struct node {
 
 int start(struct node*);
 void stop(struct node*);
-struct message *read_int(struct node*);
-void write_int(struct node*, struct message*);
-struct message *read_ext(struct node*);
-void write_ext(struct node*, struct message*);
+int read_int(struct node*, struct message*);
+int write_int(struct node*, struct message*);
+int read_ext(struct node*, struct message*);
+int write_ext(struct node*, struct message*);
 int report(int, int*);

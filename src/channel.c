@@ -25,3 +25,11 @@ int chan_send_mpsc(chan *c, void *data){
 int chan_recv_mpsc(chan *c, void *data){
     return ck_ring_dequeue_mpsc(&c->ring, c->b, &data);
 }
+
+int chan_send_spsc(chan *c, void *data){
+    return ck_ring_enqueue_mpsc(&c->ring, c->b, data);
+}
+
+int chan_recv_spsc(chan *c, void *data){
+    return ck_ring_dequeue_mpsc(&c->ring, c->b, &data);
+}

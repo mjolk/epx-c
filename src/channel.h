@@ -18,3 +18,5 @@ int chan_send_spmc(chan*, void*);
 int chan_recv_spmc(chan*, void*);
 int chan_send_mpsc(chan*, void*);
 int chan_recv_mpsc(chan*, void*);
+int chan_send_spsc(chan*, void*);
+int chan_recv_spsc(chan*, void*);
