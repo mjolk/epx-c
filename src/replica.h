@@ -5,6 +5,7 @@
  * Date   : do 06 sep 2018 20:21
  */
 
+#include "channel.h"
 #include "index.h"
 #include <err.h>
 #include <libdill.h>
@@ -17,15 +18,19 @@ struct replica {
     int chan_tick[2];
     int chan_propose[2] ;
     int chan_ii[2];
-    int chan_io[2];
-    int chan_eo[2];
-    int chan_exec[2];
+    chan chan_io;
+    chan chan_exec;
+    chan chan_eo;
+    chan chan_cont;
+    chan chan_new;
     int running;
     uint8_t epoch;
     size_t id;
     struct instance_index index[N];
     struct tickers timers;
     khash_t(deferred) *dh;
+    int ap;
+    int frequency;
 };
 
 struct instance* find_instance(struct replica*, struct instance_id*);

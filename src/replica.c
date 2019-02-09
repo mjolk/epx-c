@@ -8,28 +8,44 @@
 #include "replica.h"
 #include <stdio.h>
 
-int send_io(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_io[1], &m, MSG_SIZE, 10);
-    if(rc < 0){
-        return -1;
+coroutine void tcl(struct replica *r){
+    uint8_t t = 1;
+    while(r->running){
+        chsend(r->chan_tick[0], &t, sizeof(uint8_t), 20);
+        msleep(now() + r->frequency);
     }
-    return rc;
+}
+
+coroutine void recv_cont(struct replica *r){
+    struct message *m;
+    while(r->running && chan_recv_mpsc(&r->chan_cont, &m )){
+       if(chsend(r->chan_ii[0], &m, MSG_SIZE, 20) < 0){
+           perror("could not send to algo");
+       } 
+    }
+    msleep(now() + r->frequency);
+}
+
+coroutine void recv_propose(struct replica *r){
+    struct message *m;
+    while(r->running && chan_recv_mpsc(&r->chan_new, &m )){
+       if(chsend(r->chan_propose[0], &m, MSG_SIZE, -1) < 0){
+           perror("could not send to algo");
+       } 
+    }
+    msleep(now() + r->frequency);
+}
+
+int send_io(struct replica *r, struct message *m){
+    return chan_send_spmc(&r->chan_io, m);
 }
 
 int send_eo(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_eo[1], &m, MSG_SIZE, 10);
-    if(rc < 0){
-        return -1;
-    }
-    return rc;
+    return chan_send_spmc(&r->chan_eo, m);
 }
 
 int send_exec(struct replica *r, struct message *m){
-    int rc = chsend(r->chan_exec[1], &m, MSG_SIZE, 10);
-    if(rc < 0){
-        return -1;
-    }
-    return rc;
+    return chan_send_spmc(&r->chan_exec, m);
 }
 
 int new_replica(struct replica *r){
@@ -37,14 +53,20 @@ int new_replica(struct replica *r){
     if(chmake(r->chan_tick) != 0) goto error;
     if(chmake(r->chan_propose) !=0) goto error;
     if(chmake(r->chan_ii) !=0) goto error;
-    if(chmake(r->chan_io) !=0) goto error;
-    if(chmake(r->chan_eo) !=0) goto error;
-    if(chmake(r->chan_exec) !=0) goto error;
+    chan_init(&r->chan_io);
+    chan_init(&r->chan_eo);
+    chan_init(&r->chan_exec);
+    chan_init(&r->chan_cont);
+    chan_init(&r->chan_new);
     r->dh = kh_init(deferred);
     SIMPLEQ_INIT(&r->timers);
     for(int i = 0;i < N;i++){
         LLRB_INIT(&r->index[i]);
     }
+    r->ap = bundle();
+    if(bundle_go(r->ap, tcl(r)) < 0) goto error;
+    if(bundle_go(r->ap, recv_propose(r)) < 0) goto error;
+    if(bundle_go(r->ap, recv_cont(r)) < 0) goto error;
     return 0;
 error:
     perror("problem creating replica\n");
@@ -59,16 +81,11 @@ void destroy_replica(struct replica *r){
     hclose(r->chan_propose[1]);
     hclose(r->chan_ii[0]);
     hclose(r->chan_ii[1]);
-    hclose(r->chan_io[0]);
-    hclose(r->chan_io[1]);
-    hclose(r->chan_eo[0]);
-    hclose(r->chan_eo[1]);
-    hclose(r->chan_exec[0]);
-    hclose(r->chan_exec[1]);
     kh_destroy(deferred, r->dh);
     for(int i = 0;i < N;i++){
         LLRB_DESTROY(instance_index, &r->index[i], destroy_instance);
     }
+    hclose(r->ap);
 }
 
 int trigger(struct timer *t){

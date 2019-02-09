@@ -38,6 +38,7 @@ struct node {
     chan chan_ii;
     chan chan_exec;
     struct replica r;
+    struct executor *exec;
     int running;
     int amplitude;
     int ap;

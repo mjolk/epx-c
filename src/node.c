@@ -16,9 +16,8 @@ int report(int ch, int *rc){
     return chsend(ch, rc, sizeof(int), 20);
 }
 
-void close_connection(struct connection *c){
+void reset_connection(struct connection *c){
     pthread_mutex_lock(&c->lock);
-    hclose(c->handle);
     c->alive = 0;
     hclose(c->ap);
     pthread_mutex_unlock(&c->lock);
@@ -72,59 +71,6 @@ int listen(int port) {
     return tcp_listen(&addr, 10);
 }
 
-coroutine void tclock(struct node *n){
-    struct message *m;
-    while(n->running){
-        chsend(n->r.chan_tick[0], &m, MSG_SIZE, 20);
-        msleep(now() + n->amplitude);
-    }
-}
-
-coroutine void nrecv_int(struct node *n){
-    struct message *m;
-    while(n->running){
-        if((m = chan_recv(&n->chan_ii))){
-            chsend(n->r.chan_ii[0], &m, MSG_SIZE, 20);
-        }
-    }
-}
-
-coroutine void nrecv_ext(struct node *n){
-    struct message *m;
-    while(n->running){
-        if((m = chan_recv(&n->chan_ei))){
-            chsend(n->r.chan_propose[0], &m, MSG_SIZE, 20);
-        }
-    }
-}
-
-coroutine void nsend_exec(struct node *n){
-    struct message *m;
-    while(n->running){
-        if((chrecv(n->r.chan_exec[0], &m, MSG_SIZE, -1)) >= 0){
-            chan_send(&n->chan_exec, m);
-        }
-    }
-}
-
-coroutine void nsend_int(struct node *n){
-    struct message *m;
-    while(n->running){
-        if((chrecv(n->r.chan_io[0], &m, MSG_SIZE, -1)) >= 0){
-            chan_send(&n->chan_io, m);
-        }
-    }
-}
-
-coroutine void nsend_ext(struct node *n){
-    struct message *m;
-    while(n->running){
-        if((chrecv(n->r.chan_eo[0], &m, MSG_SIZE, -1)) >= 0){
-            chan_send(&n->chan_eo, m);
-        }
-    }
-}
-
 static void set_con_state(struct fbs_sock *f, size_t r_id){
     f->replica_id = r_id;
     f->hdrlen = 4;
@@ -141,20 +87,11 @@ int start(struct node *n){
     }
     n->running = 1;
     if(new_replica(&n->r) < 0) goto error;
-    if(chan_init(&n->chan_ei) < 0) goto error;
-    if(chan_init(&n->chan_eo) < 0) goto error;
-    if(chan_init(&n->chan_ii) < 0) goto error;
-    if(chan_init(&n->chan_io) < 0) goto error;
     n->ap = bundle();
     if(n->ap < 0) goto error;
     int rc = 0;
-    if(bundle_go(n->ap, tclock(n)) < 0) goto error;
-    if(bundle_go(n->ap, nrecv_int(n)) < 0) goto error;
-    if(bundle_go(n->ap, nrecv_ext(n)) < 0) goto error;
-    if(bundle_go(n->ap, nsend_ext(n)) < 0) goto error;
-    if(bundle_go(n->ap, nsend_int(n)) < 0) goto error;
-    if(bundle_go(n->ap, nsend_exec(n)) < 0) goto error;
     run(&n->r);
+    return 0;
 error:
     n->running = 0;
     perror("error..todo");
@@ -167,50 +104,49 @@ void stop(struct node *n){
     hclose(n->ap);
 }
 
-struct message *read_int(struct node *n){
-    return chan_recv(&n->chan_io);
+int recv_io(struct replica *r, struct message *m){
+    return chan_recv_spmc(&r->chan_io, m);
 }
 
-struct message *read_ext(struct node *n){
-    return chan_recv(&n->chan_eo);
+int recv_eo(struct replica *r, struct message *m){
+    return chan_recv_spmc(&r->chan_eo, m);
 }
 
-void write_int(struct node *n, struct message *m){
-    chan_send(&n->chan_ii, m);
+int send_cont(struct replica *r, struct message *m){
+    return chan_send_mpsc(&r->chan_cont, m);
 }
 
-void write_ext(struct node *n, struct message *m){
-    chan_send(&n->chan_ei, m);
+int send_new(struct replica *r, struct message *m){
+    return chan_send_mpsc(&r->chan_new, m);
 }
 
 int write_message(int ch, struct message *m){
     return msend(ch, m, sizeof(struct message), 40);
 }
 
-struct message *read_message(int ch, int *rc){
-    struct message *m = malloc(sizeof(struct message));
-    if(m == 0){ *rc = -1;return 0;}
+ssize_t read_message(int sock, struct message *m){
+    m = malloc(sizeof(struct message));
+    if(m == 0){ errno = ENOMEM; return -1;}
     ssize_t s;
-    if((s = mrecv(ch, m, sizeof(struct message), -1 )) && (s < 0)){
-        *rc = s;
-        return 0;
+    if((s = mrecv(sock, m, sizeof(struct message), -1 )) && (s >= 0)){
+        return s;
     }
-    return m;
+    return -1;
 }
 
 coroutine void internal_in(struct connection *c, struct node *n, int rep){
     int rc = 0;
     while(c->alive){
-        struct message *m  = read_message(c->handle, &rc);
-        if(m == 0) yield();continue;
+        struct message *m;
+        ssize_t s = read_message(c->handle, m);
+        if(s <= 0) msleep(now() + 100);
         if(m->start){
             m->stop = now();
             c->latency = m->start - m->stop;
         }
-        write_int(n, m);
+        send_cont(&n->r, m);
         rc = chsend(rep, &rc, sizeof(int), 20);
         if(rc < 0) return;
-        rc = 0;
     }
 }
 
@@ -226,7 +162,6 @@ coroutine void internal_listen(struct node *n, int port, int rep){
         ch = fbs_sock_attach(ch, &f);
         if(ch < 0) return;
         struct connection *c = &n->cons[f.xreplica_id];
-        close_connection(c);
         c->id = f.xreplica_id;
         c->fbs = f;
         c->handle = ch;
@@ -237,7 +172,7 @@ coroutine void internal_listen(struct node *n, int port, int rep){
 
 //TODO check if override in protocol allows hclose on ssend routines
 // eg without closing the connection
-coroutine void ssend(struct node *n, struct message *m, int rep){
+coroutine void try_send(struct node *n, struct message *m, int rep){
     struct connection *c = &n->cons[m->to];
     int rc = 0;
     if(!c->alive){
@@ -248,16 +183,9 @@ coroutine void ssend(struct node *n, struct message *m, int rep){
     if(rc < 0){
         rc = connect(rep, n, m->to);
         if(rc < 0){
-            close_connection(c);
-            goto result;
-        }
-        rc = write_message(c->handle, m);
-        if(rc < 0){
-            close_connection(c);
             goto result;
         }
     }
-    rc = chsend(rep, &rc, sizeof(int), 20);
 result:
     rc = chsend(rep, &rc, sizeof(int), 20);
 }
@@ -362,11 +290,11 @@ coroutine void broadcast_commit(struct node *n, struct message *m, int rep){
         if(rc < 0) goto report;
         sent++;
     }
-    report(rep, &rc);
 report:
     report(rep, &rc);
 
 }
+
 coroutine void internal_out(struct node *n, int rep){
     struct message *m;
     while(n->running){
