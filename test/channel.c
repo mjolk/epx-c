@@ -6,15 +6,17 @@
  */
 
 #include "../src/channel.h"
+#include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
 
 void *sendmsg(void*);
 void *receivemsg(void*);
 
 int main(){
 
-    chan *channel = malloc(sizeof(chan));
-    if(chan_init(channel) < 0) return 1;
+    chan *channel = malloc(sizeof(struct chan));
+    chan_init(channel);
     pthread_t sending[3];
     pthread_t receiving[1];
 
@@ -38,7 +40,9 @@ void *sendmsg(void *ch){
     for(int i = 0;i < 1000;i++){
         char *msg = malloc(sizeof(char)*5);
         if(sprintf(msg, "%d", i) < 0) return 0;
-        chan_send(ch, (void*)msg);
+        if(!chan_send_mpsc(ch, msg)){
+            printf("channel full");
+        }
     }
     return 0;
 }
@@ -46,8 +50,10 @@ void *sendmsg(void *ch){
 void *receivemsg(void *ch){
     int running = 1;
     while(running){
-        char *msg = chan_recv(ch);
-        if(chan_size(ch) == 0) running = 0;
+        char *msg = 0;
+        if(!chan_recv_mpsc(ch, msg)){
+            printf("channel empty");
+        }
         free(msg);
     }
     return 0;

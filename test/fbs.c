@@ -48,8 +48,8 @@ int main(){
         .from = 3,
         .instance_status = PRE_ACCEPTED_EQ,
         .conflict = {
-            .instance_id = 1,
-            .replica_id = 1,
+            .id.instance_id = 1,
+            .id.replica_id = 1,
             .status = COMMITTED,
         },
         .start = 1,
