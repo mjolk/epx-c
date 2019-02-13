@@ -4,6 +4,7 @@
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : di 11 sep 2018 08:25
  */
+#include "../include/epx.h"
 #include "instance_id.h"
 #include "llrb-interval/llrb.h"
 #undef ns
