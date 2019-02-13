@@ -18,34 +18,40 @@ coroutine void tcl(struct replica *r){
 
 coroutine void recv_cont(struct replica *r){
     struct message *m;
-    while(r->running && chan_recv_mpsc(&r->chan_cont, &m )){
-       if(chsend(r->chan_ii[0], &m, MSG_SIZE, 20) < 0){
-           perror("could not send to algo");
-       } 
+    while(r->running){
+        if(!chan_recv_mpsc(&r->sync->chan_cont, &m )){
+            msleep(now() + 100);
+            continue;
+        }
+        if(chsend(r->chan_ii[0], &m, MSG_SIZE, 20) < 0){
+            perror("could not send to algo");
+        }
     }
-    msleep(now() + r->frequency);
 }
 
 coroutine void recv_propose(struct replica *r){
     struct message *m;
-    while(r->running && chan_recv_mpsc(&r->chan_new, &m )){
-       if(chsend(r->chan_propose[0], &m, MSG_SIZE, -1) < 0){
-           perror("could not send to algo");
-       } 
+    while(r->running){
+        if(!chan_recv_mpsc(&r->sync->chan_new, &m )){
+            msleep(now() + 100);
+            continue;
+        }
+        if(chsend(r->chan_propose[0], &m, MSG_SIZE, -1) < 0){
+            perror("could not send to algo");
+        } 
     }
-    msleep(now() + r->frequency);
 }
 
 int send_io(struct replica *r, struct message *m){
-    return chan_send_spmc(&r->chan_io, m);
+    return chan_send_spmc(&r->sync->chan_io, m);
 }
 
 int send_eo(struct replica *r, struct message *m){
-    return chan_send_spmc(&r->chan_eo, m);
+    return chan_send_spmc(&r->sync->chan_eo, m);
 }
 
 int send_exec(struct replica *r, struct message *m){
-    return chan_send_spmc(&r->chan_exec, m);
+    return chan_send_spmc(&r->sync->chan_exec, m);
 }
 
 int new_replica(struct replica *r){
@@ -53,11 +59,6 @@ int new_replica(struct replica *r){
     if(chmake(r->chan_tick) != 0) goto error;
     if(chmake(r->chan_propose) !=0) goto error;
     if(chmake(r->chan_ii) !=0) goto error;
-    chan_init(&r->chan_io);
-    chan_init(&r->chan_eo);
-    chan_init(&r->chan_exec);
-    chan_init(&r->chan_cont);
-    chan_init(&r->chan_new);
     r->dh = kh_init(deferred);
     SIMPLEQ_INIT(&r->timers);
     for(int i = 0;i < N;i++){
@@ -95,7 +96,6 @@ int trigger(struct timer *t){
 void tick(struct replica *r) {
     struct timer *c, *prev, *nxt;
     nxt = SIMPLEQ_FIRST(&r->timers);
-    if(!nxt) return;
     while(nxt){
         if(!nxt->paused)nxt->elapsed++;
         c = nxt;

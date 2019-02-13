@@ -6,7 +6,7 @@
  */
 
 #include <errno.h>
-#include "node.h"
+#include "epaxos.h"
 
 typedef struct scc {
     struct tarjan_node *nodes[MAX_DEPS];
@@ -58,11 +58,14 @@ SLL_HEAD(stack, tarjan_node);
 KHASH_MAP_INIT_INT64(vertices, struct tarjan_node*);
 
 struct executor {
+    struct sync *sync;
+    struct replica *r;
     khash_t(vertices) *vertices;
     int scc_count;
     struct stack stack;
     scc sccs[MAX_DEPS];
     int index;
+    int running;
 };
 
 void reset_exec(struct executor *e){
@@ -178,10 +181,10 @@ void sort_scc(scc *s){
     }
 }
 
-void execute_scc(struct node *n, scc *comp){
-    struct executor *e = n->exec;
+void execute_scc(struct executor *e, scc *comp){
     for(int j = 0;j < MAX_DEPS;j++){
         struct tarjan_node *v = comp->nodes[j];
+        struct dependency fdeps[MAX_DEPS];
         for(int k = 0;k < MAX_DEPS;k++){
             struct dependency dep = v->i->deps[k];
             khint_t k;
@@ -191,10 +194,8 @@ void execute_scc(struct node *n, scc *comp){
                 continue;
 
             }
-            struct instance *i = find_instance(&n->r, &dep.id);
-            if(!is_state(i->status, EXECUTED)){
-                return;
-            }
+            struct instance *i = find_instance(e->r, &dep.id);
+            if(!is_state(EXECUTED, i->status)) return;
         }
     }
     sort_scc(comp);
@@ -204,22 +205,25 @@ void execute_scc(struct node *n, scc *comp){
 
 }
 
-void execute(struct node *n){
-    strong_connect(n->exec);
-    for(int i = 0;i < n->exec->scc_count;i++){
-        execute_scc(n, &n->exec->sccs[i]);
+void execute(struct executor *e){
+    strong_connect(e);
+    for(int i = 0;i < e->scc_count;i++){
+        execute_scc(e, &e->sccs[i]);
     }
-    reset_exec(n->exec);
+    reset_exec(e);
 }
 
 
-void read_committed(struct node *n, int rep){
+void read_committed(struct executor *e, int rep){
     struct instance *i;
-    while(n->running){
-        i = chan_recv(&n->chan_exec);
+    while(e->running){
+        if(!chan_recv_spsc(&e->sync->chan_exec, &i)){
+            msleep(now() + 100);
+            continue;
+        }
         if(i){
-            if(add_node(n->exec, i)){
-                execute(n);
+            if(add_node(e, i)){
+                execute(e);
             }
         }
     }

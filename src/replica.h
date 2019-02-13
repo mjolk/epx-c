@@ -5,10 +5,10 @@
  * Date   : do 06 sep 2018 20:21
  */
 
-#include "channel.h"
-#include "index.h"
 #include <err.h>
 #include <libdill.h>
+#include "index.h"
+#include "sync.h"
 #include "hash.h"
 
 #define MSG_SIZE sizeof(struct message*)
@@ -18,11 +18,7 @@ struct replica {
     int chan_tick[2];
     int chan_propose[2] ;
     int chan_ii[2];
-    chan chan_io;
-    chan chan_exec;
-    chan chan_eo;
-    chan chan_cont;
-    chan chan_new;
+    struct sync *sync;
     int running;
     uint8_t epoch;
     size_t id;

@@ -20,11 +20,6 @@ int main(){
     pthread_t sending[3];
     pthread_t receiving[1];
 
-    for(int j = 0; j < 1;j++){
-        if(pthread_create(&receiving[j], NULL, receivemsg, channel) != 0)
-            return 1;
-    }
-
     for(int i = 0; i < 3;i++){
         if(pthread_create(&sending[i], NULL, sendmsg, channel) != 0){
             return 1;
@@ -32,16 +27,30 @@ int main(){
         pthread_detach(sending[i]);
     }
 
+    for(int j = 0; j < 1;j++){
+        if(pthread_create(&receiving[j], NULL, receivemsg, channel) != 0)
+            return 1;
+    }
+
     pthread_join(receiving[0], NULL);
     free(channel);
 }
 
+struct entry {
+    int id;
+    char msg[5];
+};
+
 void *sendmsg(void *ch){
     for(int i = 0;i < 1000;i++){
-        char *msg = malloc(sizeof(char)*5);
-        if(sprintf(msg, "%d", i) < 0) return 0;
+        //char *msg = malloc(sizeof(char)*5);
+        struct entry *msg = malloc(sizeof(struct entry));
+        sprintf(msg->msg, "%d", i);
+        msg->id = i;
+        //if(sprintf(msg, "%d", i) < 0) return 0;
+        //printf("sending msg: %d  %s @: %p\n", msg->id, msg->msg, msg);
         if(!chan_send_mpsc(ch, msg)){
-            printf("channel full");
+            printf("channel full\n");
         }
     }
     return 0;
@@ -49,12 +58,20 @@ void *sendmsg(void *ch){
 
 void *receivemsg(void *ch){
     int running = 1;
+    int cnt = 0;
     while(running){
-        char *msg = 0;
-        if(!chan_recv_mpsc(ch, msg)){
-            printf("channel empty");
+        struct entry *msg;
+        if(!chan_recv_mpsc(ch, &msg)){
+            printf("channel empty\n");
         }
-        free(msg);
+        if(msg){
+            //printf("count %d \n", cnt);
+            //printf("received msg:  %d %s @: %p\n",msg->id, msg->msg, msg);
+            cnt++;
+            free(msg);
+            if(cnt == 3000) running = 0;
+
+        }
     }
     return 0;
 }

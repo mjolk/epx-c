@@ -8,11 +8,6 @@
 #include "fbs/epx_reader.h"
 #include "fbs/epx_builder.h"
 
-#define N 3
-#define VALUE_SIZE 1024
-#define KEY_SIZE 3
-#define MAX_DEPS 8
-
 struct instance_id{
     size_t replica_id;
     uint64_t instance_id;

@@ -35,82 +35,74 @@ void copy_command(struct message *m){
     m->command = cmd;
 }
 
-coroutine void check1(int ch, int done, enum message_type t, size_t s){
+void check(struct replica *r, enum message_type t, size_t s, size_t rid){
     struct message *m;
-    int rc = chrecv(ch, &m, MSG_SIZE, -1);
-    assert(rc >= 0);
+    int rc = chan_recv_spsc(&r->sync->chan_io, &m);
+    assert(rc > 0);
     assert(m->id.instance_id == 1);
-    assert(m->id.replica_id == 0);
+    assert(m->id.replica_id == rid);
     assert(m->type == t);
     assert(m->seq == s);
-    chsend(done, &m, MSG_SIZE, -1);
 }
 
 void no_conflict(){
+    struct sync s;
+    chan_init(&s.chan_io);
+    chan_init(&s.chan_eo);
+    chan_init(&s.chan_exec);
     struct replica r1;
     struct replica r2;
-    struct message *m = create_message(PHASE1, "10", "20", WRITE);
-    int done_ch[2];
-    assert(chmake(done_ch) >= 0);
-    int b = bundle();
+    new_replica(&r1);
+    new_replica(&r2);
     r1.id = 0;
     r2.id = 1;
-    assert(new_replica(&r1) == 0);
-    assert(new_replica(&r2) == 0);
-    assert(bundle_go(b, check1(r1.chan_io[0], done_ch[0], PRE_ACCEPT, 1)) >= 0);
+    r1.sync = &s;
+    r2.sync = &s;
+    struct message *m = create_message(PHASE1, "10", "20", WRITE);
     assert(propose(&r1, m) == 0);
-    assert(chrecv(done_ch[1], &m, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, check1(r2.chan_io[0], done_ch[0], PRE_ACCEPT_OK, 1)) >= 0);
+    check(&r1, PRE_ACCEPT, 1, 0);
     copy_command(m);
     assert(m != 0);
     assert(step(&r2, m) == 0);
-    assert(chrecv(done_ch[1], &m, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, check1(r1.chan_exec[0], done_ch[0], COMMIT, 1)) >= 0);
+    check(&r2, PRE_ACCEPT_OK, 1, 0);
     assert(step(&r1, m) == 0);
-    assert(chrecv(done_ch[1], &m, MSG_SIZE, -1) >= 0);
+    check(&r1, COMMIT, 1, 0);
     destroy_replica(&r1);
     destroy_replica(&r2);
-    hclose(done_ch[0]);
-    hclose(done_ch[1]);
-    hclose(b);
     free(m);
 }
 
 void simple_conflict(){
+    struct sync s;
+    chan_init(&s.chan_io);
+    chan_init(&s.chan_eo);
+    chan_init(&s.chan_exec);
     struct replica r1;
     struct replica r2;
-    struct message *m1 = create_message(PHASE1, "10", "20", WRITE);
-    struct message *m2 = create_message(PHASE1, "06", "18", WRITE);
-    int done_ch[2];
-    assert(chmake(done_ch) >= 0);
-    int b = bundle();
+    new_replica(&r1);
+    new_replica(&r2);
     r1.id = 0;
     r2.id = 1;
-    assert(new_replica(&r1) == 0);
-    assert(new_replica(&r2) == 0);
-    assert(bundle_go(b, check1(r1.chan_io[0], done_ch[0], PRE_ACCEPT, 1)) >= 0);
+    r1.sync = &s;
+    r2.sync = &s;
+    struct message *m1 = create_message(PHASE1, "10", "20", WRITE);
+    struct message *m2 = create_message(PHASE1, "06", "18", WRITE);
     assert(propose(&r1, m1) == 0);
     assert(propose(&r2, m2) == 0);
-    assert(chrecv(done_ch[1], &m1, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, check1(r2.chan_io[0], done_ch[0], PRE_ACCEPT_REPLY, 2)) >= 0);
+    check(&r1, PRE_ACCEPT, 1, 0);
+    check(&r2, PRE_ACCEPT, 1, 1);
     copy_command(m1);
     assert(step(&r2, m1) == 0);
-    assert(chrecv(done_ch[1], &m1, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, check1(r1.chan_io[0], done_ch[0], ACCEPT, 2)) >= 0);
+    check(&r2, PRE_ACCEPT_REPLY, 2, 0);
     assert(step(&r1, m1) == 0);
-    assert(chrecv(done_ch[1], &m1, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, check1(r2.chan_io[0], done_ch[0], ACCEPT_REPLY, 2)) >= 0);
+    check(&r1, ACCEPT, 2, 0);
     assert(step(&r2, m1) == 0);
-    assert(chrecv(done_ch[1], &m1, MSG_SIZE, -1) >= 0);
-    assert(bundle_go(b, check1(r1.chan_io[0], done_ch[0], COMMIT, 2)) >= 0);
+    check(&r2, ACCEPT_REPLY, 2, 0);
     assert(step(&r1, m1) == 0);
     assert(step(&r1, m1) == 0);
-    assert(chrecv(done_ch[1], &m1, MSG_SIZE, -1) >= 0);
+    check(&r1, COMMIT, 2, 0);
     destroy_replica(&r1);
     destroy_replica(&r2);
-    hclose(done_ch[0]);
-    hclose(done_ch[1]);
-    hclose(b);
     free(m1);
     free(m2);
 }
