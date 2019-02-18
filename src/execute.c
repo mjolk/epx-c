@@ -47,7 +47,7 @@ void reset_node(struct tarjan_node *n){
     n->index = -1;
     n->low_link = -1;
     n->on_stack = 0;
-    memset(n->deps, 0, sizeof(struct tarjan_node)*MAX_DEPS);
+    memset(n->deps, 0, sizeof(struct tarjan_node*)*MAX_DEPS);
 }
 
 int min(int n1, int n2){
@@ -64,6 +64,7 @@ struct executor {
     int scc_count;
     struct stack stack;
     scc sccs[MAX_DEPS];
+    struct instance *executed[MAX_DEPS];
     int index;
     int running;
 };
@@ -71,6 +72,7 @@ struct executor {
 void reset_exec(struct executor *e){
     e->scc_count = 0;
     memset(e->sccs, 0, sizeof(scc)*MAX_DEPS);
+    memset(e->executed, 0, sizeof(struct instance*)*MAX_DEPS);
     SLL_INIT(&e->stack);
     e->index = 0;
 }
@@ -117,10 +119,10 @@ void visit(struct executor *e, struct tarjan_node *n){
         }
     }
 
-    tn = 0;
     if(n->low_link == n->index){
         int cnt = 0;
-        while((tn = pop(e)) && (tn != n)){
+        while(tn != n){
+            tn = pop(e);
             tn->on_stack = 0;
             e->sccs[e->scc_count].nodes[cnt] = tn;
             cnt++;
@@ -131,50 +133,48 @@ void visit(struct executor *e, struct tarjan_node *n){
 }
 
 void strong_connect(struct executor *e){
-    khint_t k;
-    for(k = kh_begin(e->vertices);k != kh_end(e->vertices);++k){
-        if(kh_exist(e->vertices, k)){
-            struct tarjan_node *tn = kh_value(e->vertices, k);
-            reset_node(tn);
-            for(int dc = 0;dc < MAX_DEPS;dc++){
-                if((k = kh_get(vertices, e->vertices, dh_key(
-                                    &tn->i->deps[dc].id))) &&
-                        k != kh_end(e->vertices)){
-                    tn->deps[dc] = kh_value(e->vertices, k);
-                }
-            }
+    khint_t k, l;
+    struct tarjan_node *tn;
+    kh_foreach_value(e->vertices, tn, {
+        reset_node(tn);
+        for(int dc = 0;dc < MAX_DEPS;dc++){
+            if(tn->i->deps[dc].id.instance_id == 0) continue;
+            l = kh_get(vertices, e->vertices, dh_key(&tn->i->deps[dc].id));
+            if(l == kh_end(e->vertices)) continue;
+            tn->deps[dc] = kh_value(e->vertices, l);
+        }
+    })
 
+    kh_foreach_value(e->vertices, tn, {
+        if(not_visited(tn)){
+            visit(e, tn);
         }
-    }
-    for(k = kh_begin(e->vertices);k != kh_end(e->vertices);++k){
-        if(kh_exist(e->vertices, k)){
-            struct tarjan_node *vtn = kh_value(e->vertices, k);
-            if(not_visited(vtn)){
-                visit(e, vtn);
-            }
-        }
-    }
+    })
 }
 
 int add_node(struct executor *e, struct instance *i){
-    int added = 0;
+    int new = 0;
+    khint_t k;
     struct tarjan_node *nn = new_tn(i);
     if(nn){
-        khint_t key = kh_put(vertices, e->vertices, dh_key(&i->key), &added);
-        kh_value(e->vertices, key) = nn;
-        added = 1;
+        k = kh_put(vertices, e->vertices, dh_key(&i->key), &new);
+        if(!new && kh_exist(e->vertices, k)){
+            free(kh_value(e->vertices, k));
+        }
+        kh_value(e->vertices, k) = nn;
     }
-    return added;
+    return new;
 }
 
 //insert sort good enough for now
 void sort_scc(scc *s){
-    int j = 0;
-    for(int i = 1;i < MAX_DEPS;i++){
+    int i,j;
+    for(i = 1;i < MAX_DEPS;i++){
         struct tarjan_node *d = s->nodes[i];
+        if(!d) continue;
         j = i - 1;
-        while(j >= 0 && s->nodes[j]->i->seq > d->i->seq ){
-            s->nodes[j +1] = s->nodes[j];
+        while(j >= 0 && (s->nodes[j]) && s->nodes[j]->i->seq > d->i->seq ){
+            s->nodes[j+1] = s->nodes[j];
             j--;
         }
         s->nodes[j+1] = d;
@@ -182,25 +182,33 @@ void sort_scc(scc *s){
 }
 
 void execute_scc(struct executor *e, scc *comp){
-    for(int j = 0;j < MAX_DEPS;j++){
-        struct tarjan_node *v = comp->nodes[j];
-        struct dependency fdeps[MAX_DEPS];
-        for(int k = 0;k < MAX_DEPS;k++){
-            struct dependency dep = v->i->deps[k];
-            khint_t k;
-            if((k = kh_get(vertices, e->vertices, dh_key(&dep.id))) &&
-                    k != kh_end(e->vertices) &&
-                    contains(comp, kh_value(e->vertices, k)) ){
+    khint_t k;
+    int i, j;
+    for(i = 0;i < MAX_DEPS;i++){
+        struct tarjan_node *v = comp->nodes[i];
+        if(!v) continue;
+        for(j = 0;j < MAX_DEPS;j++){
+            struct dependency dep = v->i->deps[j];
+            if(dep.id.instance_id == 0) continue;
+            k = kh_get(vertices, e->vertices, dh_key(&dep.id));
+            if((k != kh_end(e->vertices)) &&
+                    contains(comp, kh_value(e->vertices, k))){
                 continue;
 
             }
             struct instance *i = find_instance(e->r, &dep.id);
-            if(!is_state(EXECUTED, i->status)) return;
+            if((!i) || (!is_state(EXECUTED, i->status))) return;
         }
     }
     sort_scc(comp);
-    for(int i = 0;i < MAX_DEPS;i++){
-
+    for(i = 0;i < MAX_DEPS;i++){
+        if(!comp->nodes[i]) continue;
+        struct instance *executed = comp->nodes[i]->i;
+        executed->status = EXECUTED;
+        e->executed[i] = executed;
+        k = kh_get(vertices, e->vertices, dh_key(&executed->key));
+        if(k != kh_end(e->vertices)) kh_del(vertices, e->vertices, k);
+        free(comp->nodes[i]);
     }
 
 }

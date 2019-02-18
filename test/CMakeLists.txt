@@ -37,3 +37,7 @@ add_test(NAME replica COMMAND replica_test)
 add_executable(epaxos_test epaxos.c)
 target_link_libraries(epaxos_test epx)
 add_test(NAME epaxos COMMAND epaxos_test)
+
+add_executable(execute_test execute.c)
+target_link_libraries(execute_test epx)
+add_test(NAME execute COMMAND execute_test)

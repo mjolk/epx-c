@@ -23,3 +23,5 @@ int chan_send_mpsc(chan*, void*);
 int chan_recv_mpsc(chan*, void*);
 int chan_send_spsc(chan*, void*);
 int chan_recv_spsc(chan*, void*);
+int chan_send_mpmc(chan*, void*);
+int chan_recv_mpmc(chan*, void*);

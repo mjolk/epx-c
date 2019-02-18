@@ -24,11 +24,7 @@ struct message *message_from_instance(struct instance *i){
 struct instance *instance_from_message(struct message *m){
     struct instance *i = malloc(sizeof(struct instance));
     if(i == 0){ errno = ENOMEM; return 0;};
-    for(int ld = 0;ld < MAX_DEPS;ld++){
-        i->deps[ld].id.instance_id = 0;
-        i->deps[ld].id.replica_id = 0;
-        i->deps[ld].committed = 0;
-    }
+    memset(i->deps, 0, sizeof(struct dependency)*MAX_DEPS);
     i->ballot = m->ballot;
     i->command = m->command;
     i->key = m->id;

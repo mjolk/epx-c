@@ -38,7 +38,7 @@ coroutine void recv_propose(struct replica *r){
         }
         if(chsend(r->chan_propose[0], &m, MSG_SIZE, -1) < 0){
             perror("could not send to algo");
-        } 
+        }
     }
 }
 
