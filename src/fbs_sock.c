@@ -127,7 +127,7 @@ static int fbs_sock_msendl(struct msock_vfs *mvfs,
     }
     struct iolist hdr = {szbuf, sizeof(szbuf), first, 0};
     int rc = bsendl(self->u, &hdr, last, deadline);
-    free(first->iol_base);
+    flatcc_builder_aligned_free(first->iol_base);
     if(rc < 0) {self->senderr = 1; return -1;}
     return 0;
 }
@@ -152,7 +152,7 @@ static ssize_t fbs_sock_mrecvl(struct msock_vfs *mvfs,
     first->iol_len = sz;
     first->iol_base = vla;
     first->iol_next = NULL;
-    rc = dill_brecvl(self->u, first, last, deadline);
+    rc = brecvl(self->u, first, last, deadline);
     if(rc < 0) {self->recverr = 1; return -1;}
     if(self->decode(decoded, first->iol_base) < 0) return -1;
     first->iol_base = decoded;
