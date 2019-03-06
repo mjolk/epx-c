@@ -49,7 +49,7 @@ void *sendmsg(void *ch){
         msg->id = i;
         //if(sprintf(msg, "%d", i) < 0) return 0;
         //printf("sending msg: %d  %s @: %p\n", msg->id, msg->msg, msg);
-        if(!chan_send_mpsc(ch, msg)){
+        if(!sem_chan_send_mpsc(ch, msg)){
             printf("channel full\n");
         }
     }
@@ -61,7 +61,7 @@ void *receivemsg(void *ch){
     int cnt = 0;
     while(running){
         struct entry *msg;
-        if(!chan_recv_mpsc(ch, &msg)){
+        if(!sem_chan_recv_mpsc(ch, &msg)){
             printf("channel empty\n");
         }
         if(msg){

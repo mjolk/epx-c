@@ -27,6 +27,14 @@ int chan_recv_spmc(chan *c, void *data){
 }
 
 int chan_send_mpsc(chan *c, void *data){
+    return ck_ring_enqueue_mpsc(&c->ring, c->b, data);
+}
+
+int chan_recv_mpsc(chan *c, void *data){
+    return ck_ring_dequeue_mpsc(&c->ring, c->b, data);
+}
+
+int sem_chan_send_mpsc(chan *c, void *data){
     int rc = 0;
     do
         rc = sem_wait(&c->s_sem);
@@ -40,7 +48,7 @@ send_error:
     return -1;
 }
 
-int chan_recv_mpsc(chan *c, void *data){
+int sem_chan_recv_mpsc(chan *c, void *data){
     int rc = 0;
     do
         rc = sem_wait(&c->c_sem);
