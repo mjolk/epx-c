@@ -30,7 +30,7 @@ struct span {
 };
 
 struct command {
-    struct span span;
+    struct span spans[100];
     int id;
     enum io_t writing;
     uint8_t *value;

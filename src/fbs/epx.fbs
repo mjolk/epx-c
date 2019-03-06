@@ -9,10 +9,14 @@ namespace epx;
 
 enum io_t:ubyte { READ = 0, WRITE}
 
-table command {
-  id:ubyte;
+table span {
   start_key:string;
   end_key:string;
+}
+
+table command {
+  id:ubyte;
+  spans:[span];
   writing:io_t;
   value:[ubyte];
 }

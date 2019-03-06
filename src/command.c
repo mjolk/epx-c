@@ -17,12 +17,14 @@ int command_from_buffer(struct command *c, const void *buffer) {
             return 1;
         }
         c->id = ns(command_id(cmd));
-        flatbuffers_string_t start = ns(command_start_key(cmd));
-        //TODO defend overflow
-        strcpy(c->span.start_key, start);
-        flatbuffers_string_t end = ns(command_end_key(cmd));
-        //TODO defend overflow
-        strcpy(c->span.end_key, end);
+        ns(span_vec_t) spans = ns(command_spans(cmd));
+        size_t sln = ns(span_vec_len(spans));
+        for(size_t i = 0;i < sln;i++){
+            strcpy(c->spans[i].start_key,
+                    ns(span_start_key(ns(span_vec_at(spans, i)))));
+            strcpy(c->spans[i].end_key,
+                    ns(span_end_key(ns(span_vec_at(spans, i)))));
+        }
         c->writing = ns(command_writing(cmd));
         //TODO defend buffer overflow
         size_t scp = sizeof(ns(command_value(cmd)));
@@ -35,8 +37,15 @@ int command_from_buffer(struct command *c, const void *buffer) {
 epx_command_ref_t command_to_buffer(struct command *c, flatcc_builder_t *b) {
     ns(command_start(b));
     ns(command_id_add(b, c->id));
-    ns(command_start_key_create_str(b, c->span.start_key));
-    ns(command_end_key_create_str(b, c->span.end_key));
+    ns(command_spans_start(b));
+    for(int i = 0;i < 100;i++){
+        if(c->spans[i].start_key[0] == '\0') continue;
+        ns(command_spans_push_create(b,
+                    flatbuffers_string_create_str(b, c->spans[i].start_key),
+                    flatbuffers_string_create_str(b, c->spans[i].end_key)
+                    ));
+    }
+    ns(command_spans_end(b));
     ns(command_writing_add(b, c->writing));
     if(c->value){
         ns(command_value_create(b, c->value,
@@ -57,5 +66,5 @@ int encloses(struct span *s1, struct span *s2){
 }
 
 int interferes(struct command *c1, struct command *c2) {
-    return (c1->writing || c2->writing) && overlaps(&c1->span, &c2->span);
+    return (c1->writing || c2->writing) && overlaps(&c1->spans, &c2->spans);
 }

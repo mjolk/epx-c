@@ -29,6 +29,9 @@ typedef epx_dependency_t *epx_dependency_mutable_struct_t;
 typedef const epx_dependency_t *epx_dependency_vec_t;
 typedef epx_dependency_t *epx_dependency_mutable_vec_t;
 
+typedef const struct epx_span_table *epx_span_table_t;
+typedef const flatbuffers_uoffset_t *epx_span_vec_t;
+typedef flatbuffers_uoffset_t *epx_span_mutable_vec_t;
 typedef const struct epx_command_table *epx_command_table_t;
 typedef const flatbuffers_uoffset_t *epx_command_vec_t;
 typedef flatbuffers_uoffset_t *epx_command_mutable_vec_t;
@@ -44,6 +47,11 @@ typedef flatbuffers_uoffset_t *epx_batch_mutable_vec_t;
 typedef const struct epx_instance_table *epx_instance_table_t;
 typedef const flatbuffers_uoffset_t *epx_instance_vec_t;
 typedef flatbuffers_uoffset_t *epx_instance_mutable_vec_t;
+#ifndef epx_span_identifier
+#define epx_span_identifier flatbuffers_identifier
+#endif
+#define epx_span_type_hash ((flatbuffers_thash_t)0xa2695682)
+#define epx_span_type_identifier "\x82\x56\x69\xa2"
 #ifndef epx_command_identifier
 #define epx_command_identifier flatbuffers_identifier
 #endif
@@ -246,6 +254,17 @@ __flatbuffers_define_struct_scalar_field(epx_dependency, instance_id, flatbuffer
 __flatbuffers_define_struct_scalar_field(epx_dependency, committed, flatbuffers_uint8, uint8_t)
 
 
+struct epx_span_table { uint8_t unused__; };
+
+static inline size_t epx_span_vec_len(epx_span_vec_t vec)
+__flatbuffers_vec_len(vec)
+static inline epx_span_table_t epx_span_vec_at(epx_span_vec_t vec, size_t i)
+__flatbuffers_offset_vec_at(epx_span_table_t, vec, i, 0)
+__flatbuffers_table_as_root(epx_span)
+
+__flatbuffers_define_string_field(0, epx_span, start_key, 0)
+__flatbuffers_define_string_field(1, epx_span, end_key, 0)
+
 struct epx_command_table { uint8_t unused__; };
 
 static inline size_t epx_command_vec_len(epx_command_vec_t vec)
@@ -255,10 +274,9 @@ __flatbuffers_offset_vec_at(epx_command_table_t, vec, i, 0)
 __flatbuffers_table_as_root(epx_command)
 
 __flatbuffers_define_scalar_field(0, epx_command, id, flatbuffers_uint8, uint8_t, UINT8_C(0))
-__flatbuffers_define_string_field(1, epx_command, start_key, 0)
-__flatbuffers_define_string_field(2, epx_command, end_key, 0)
-__flatbuffers_define_scalar_field(3, epx_command, writing, epx_io_t, epx_io_t_enum_t, UINT8_C(0))
-__flatbuffers_define_vector_field(4, epx_command, value, flatbuffers_uint8_vec_t, 0)
+__flatbuffers_define_vector_field(1, epx_command, spans, epx_span_vec_t, 0)
+__flatbuffers_define_scalar_field(2, epx_command, writing, epx_io_t, epx_io_t_enum_t, UINT8_C(0))
+__flatbuffers_define_vector_field(3, epx_command, value, flatbuffers_uint8_vec_t, 0)
 
 struct epx_instance_data_table { uint8_t unused__; };
 
