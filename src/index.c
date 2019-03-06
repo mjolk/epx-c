@@ -85,20 +85,17 @@ uint64_t seq_deps_for_command(
     return mseq;
 }
 
-void noop_deps(struct instance_index *index, size_t replica_id,
-        struct dependency *deps) {
-    struct instance *ti, *nxt;
-    int idx = lt_dep(replica_id, deps);
-    nxt = LLRB_MAX(instance_index, index);
-    while(nxt){
-        ti = nxt;
-        nxt = LLRB_PREV(instance_index, index, nxt);
-        if(ti->status >= COMMITTED &&
-                ti->key.instance_id >= deps[idx].id.instance_id){
-            deps[idx].committed = 1;
-            return;
-        }
-    }
+void barrier_dep(struct instance_index *index, struct dependency *deps) {
+    add_dep(deps, LLRB_PREV(instance_index, index, LLRB_MAX(instance_index, index)));
+}
+
+void noop_dep(struct instance_id *id, struct dependency *deps) {
+    memset(deps, 0, DEPSIZE);
+    struct dependency dep = {
+        .id = *id
+    };
+    dep.id.instance_id -= 1;
+    update_deps(deps, &dep);
 }
 
 struct instance* pre_accept_conflict(struct instance_index *index,
@@ -118,15 +115,16 @@ struct instance* pre_accept_conflict(struct instance_index *index,
         if(ti->command == 0){
             continue;
         }
-        if(ti->deps[lt_dep(i->key.replica_id, ti->deps)].id.instance_id >=
+        if(lt_dep_replica(i->key.replica_id, ti->deps) >=
                 i->key.instance_id){
             continue;
         }
         if(interferes(ti->command, c)){
-            int didx = lt_dep(ti->key.replica_id, deps);
-            if((ti->key.instance_id > deps[didx].id.instance_id) ||
-                    ((ti->key.instance_id < deps[didx].id.instance_id) &&
-                     (ti->seq >= seq) && ((ti->key.replica_id != i->key.replica_id) ||
+            uint64_t lt_instance = lt_dep_replica(ti->key.replica_id, deps);
+            if((ti->key.instance_id > lt_instance) ||
+                    ((ti->key.instance_id < lt_instance) &&
+                     (ti->seq >= seq) &&
+                     ((ti->key.replica_id != i->key.replica_id) ||
                          ti->status > PRE_ACCEPTED_EQ))){
                 return ti;
             }

@@ -9,6 +9,7 @@
 
 uint64_t seq_deps_for_command(struct instance_index*, struct command*,
         struct instance_id*, struct seq_deps_probe *p);
-void noop_deps(struct instance_index*, size_t replica_id, struct dependency*);
+void noop_dep(struct instance_id*, struct dependency*);
+void barrier_dep(struct instance_index*, struct dependency*);
 struct instance* pre_accept_conflict(struct instance_index*, struct instance *i,
-        struct command *c, uint64_t seq, struct dependency *deps);
+        struct command *c, uint64_t seq, struct dependency*);

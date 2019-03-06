@@ -43,3 +43,4 @@ int send_eo(struct replica*, struct message*);
 int send_exec(struct replica*, struct message*);
 int send_io(struct replica*, struct message*);
 void destroy_replica(struct replica*);
+int run_replica(struct replica*);

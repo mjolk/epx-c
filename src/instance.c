@@ -12,7 +12,7 @@
 
 struct message *message_from_instance(struct instance *i){
     struct message *nm = malloc(sizeof(struct message));
-    if(nm == 0){ errno = ENOMEM; return 0;};
+    if(!nm){ errno = ENOMEM; return 0;};
     nm->ballot = i->ballot;
     nm->command = i->command;
     nm->id = i->key;
@@ -21,15 +21,13 @@ struct message *message_from_instance(struct instance *i){
     return nm;
 }
 
-struct instance *instance_from_message(struct message *m){
+struct instance *new_instance(){
     struct instance *i = malloc(sizeof(struct instance));
-    if(i == 0){ errno = ENOMEM; return 0;};
-    memset(i->deps, 0, sizeof(struct dependency)*MAX_DEPS);
-    i->ballot = m->ballot;
-    i->command = m->command;
-    i->key = m->id;
-    i->seq = m->seq;
+    if(!i){ errno = ENOMEM; return 0;}
+    i->ballot = 0;
+    i->seq = 0;
     i->status = NONE;
+    i->deps_updated = 0;
     i->lt = 0;
     return i;
 }
@@ -45,7 +43,7 @@ void destroy_instance(struct instance *i){
 }
 
 int is_state(enum state state_a, enum state state_b){
-    return !((state_a & state_b) == 0);
+    return (state_a & state_b) > 0;
 }
 
 uint8_t unique_ballot(uint8_t ballot, size_t replica_id){
@@ -64,17 +62,15 @@ size_t replica_from_ballot(uint8_t ballot){
     return ballot & 15;
 }
 
-int lt_dep(size_t replica_id, struct dependency *deps){
-    int idx = 0;
-    uint64_t inst_id = 0;
+//ordered a > b so first result is largest instance id for replica
+uint64_t lt_dep_replica(size_t replica_id, struct dependency *deps){
     for(int i = 0;i < MAX_DEPS;i++){
-        if(replica_id == deps->id.replica_id &&
-                deps->id.instance_id > inst_id){
-            inst_id = deps->id.instance_id;
-            idx = i;
+        if(replica_id == deps->id.replica_id){
+            return deps->id.instance_id;
         }
+        deps++;
     }
-    return idx;
+    return 0;
 }
 
 int has_key(struct instance_id *id, struct dependency *deps){
@@ -100,8 +96,7 @@ void sort_deps(struct dependency *deps){
 }
 
 int equal_deps(struct dependency *deps1, struct dependency *deps2){
-    sort_deps(deps1);
-    sort_deps(deps2);
+    //we know they are sorted a > b
     for(int i = 0; i < MAX_DEPS; i++){
         if(!eq_instance_id(&deps1->id, &deps2->id) ||
                 deps1->committed != deps2->committed){
@@ -113,40 +108,55 @@ int equal_deps(struct dependency *deps1, struct dependency *deps2){
     return 1;
 }
 
-void update_recovery_instance(struct recovery_instance *ri, struct message *m,
-        int leader_replied, int pa_count){
+void update_recovery_instance(struct recovery_instance *ri, struct message *m){
     ri->command = m->command;
     memcpy(ri->deps, m->deps, DEPSIZE);
     ri->seq = m->seq;
     ri->status = m->instance_status;
-    ri->leader_replied = leader_replied;
-    ri->pre_accept_count = pa_count;
 }
 
+//instance tree comparator
 int intcmp(struct instance *e1, struct instance *e2)
 {
     return (e1->key.instance_id < e2->key.instance_id ? -1 :
             e1->key.instance_id > e2->key.instance_id);
 }
 
+//generate instance tree type
 LLRB_GENERATE(instance_index, instance, entry, intcmp);
 
-int update_deps(struct dependency *deps, struct dependency* d) {
+//update committed status for existing, add to free slot or replace oldest
+//if smaller than smallest present ->dropped and no update signalled
+int update_deps(struct dependency *deps, struct dependency *d) {
     if(d->id.instance_id == 0) return 0;
-    int f_index = -1;
-    for(int i = 0;i < MAX_DEPS;i++){
-        if(deps[i].id.instance_id == 0 && f_index < 0){
-            f_index = i;
-            continue;
-        }
+    int i;
+    for(i = 0;i < MAX_DEPS;i++){
         if(eq_instance_id(&deps[i].id, &d->id)){
+            if(deps[i].committed < d->committed){
+                deps[i].committed = d->committed;
+                return 1;
+            }
             return 0;
         }
     }
-    if(f_index < 0) return -1;
-    deps[f_index].id = d->id;
-    deps[f_index].committed = d->committed;
-    return 1;
+
+    //adding
+    //will we need to overwrite?
+    int overflow = (deps[MAX_DEPS-1].id.instance_id != 0);
+    int j = 0;
+    for(i = 0;i < MAX_DEPS;i++){
+        if(deps[i].id.instance_id < d->id.instance_id){
+            j = MAX_DEPS-1;
+            while(j > i){
+                if(deps[j-1].id.instance_id == 0) continue;
+                deps[j] = deps[j -1];
+                j--;
+            }
+            deps[i] = *d;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int add_dep(struct dependency *deps, struct instance *i){
@@ -174,7 +184,7 @@ int is_committed(struct instance *i){
 
 int has_uncommitted_deps(struct instance *i){
     for(int dc = 0;dc < MAX_DEPS;dc++){
-        if(i->deps[dc].id.instance_id == 0) continue;
+        if(i->deps[dc].id.instance_id == 0) return 0; //sorted a > b
         if(i->deps[dc].committed == 0){
             return 1;
         }
@@ -183,10 +193,7 @@ int has_uncommitted_deps(struct instance *i){
 }
 
 void instance_reset(struct instance *i){
-    for(int d = 0;d < MAX_DEPS;d++){
-        i->deps[d].committed = 0;
-        i->deps[d].id.instance_id = 0;
-    }
+    memset(i->deps, 0, DEPSIZE);
     if(i->lt){
         //TODO reset all counters
         i->lt->ri.status = NONE;

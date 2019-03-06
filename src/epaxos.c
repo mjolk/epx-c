@@ -8,10 +8,19 @@
 #include "epaxos.h"
 #include <stdio.h>
 
+struct leader_tracker *new_tracker(){
+    struct leader_tracker *lt = calloc(1, sizeof(struct leader_tracker));
+    if(!lt){ errno = ENOMEM; return 0;}
+    lt->ri.status = NONE;
+    lt->recovery_status = NONE;
+    return lt;
+}
+
 uint64_t dh_key(struct instance_id *id){
     return (id->instance_id << 16) | id->replica_id;
 }
-void noop (struct replica *s, struct timer *t){
+
+void noop(struct replica *s, struct timer *t){
     return;
 }
 
@@ -32,7 +41,8 @@ void init_fp_timeout(struct instance *i){
     i->ticker.on = fast_path_timeout;
 }
 
-static inline void do_commit(struct replica *r, struct instance *i, struct message *m){
+static inline void do_commit(struct replica *r, struct instance *i,
+        struct message *m){
     cancel_timeout(i);
     i->status = COMMITTED;
     m->type = COMMIT;
@@ -45,14 +55,11 @@ static inline void do_commit(struct replica *r, struct instance *i, struct messa
 }
 
 void progress(struct replica *r, struct instance*, struct message*);
+
 void recover(struct replica *r, struct instance *i, struct message *m) {
-    init_timeout(i);
-    if(i->lt == 0){
-        i->lt = malloc(sizeof(struct leader_tracker));
-        if(i->lt == 0){
-            return;
-        }
-        i->lt->ri.status = NONE;
+    if(!i->lt){
+        i->lt = new_tracker();
+        if(!i->lt) return;
     }
     i->lt->recovery_status = PREPARING;
     if(i->status == ACCEPTED){
@@ -71,39 +78,34 @@ void recover(struct replica *r, struct instance *i, struct message *m) {
     m->command = i->command;
     m->seq = i->seq;
     m->type = PREPARE;
+    init_timeout(i);
     send_io(r, m);
 }
 
 void phase1(struct replica *r, struct instance *i, struct message *m){
     instance_reset(i);
-    init_fp_timeout(i);
-    //add updated field somewhere, use lt.. should remove this probe struct
+    //TODO add updated field somewhere, use lt.. should remove this probe struct
     struct seq_deps_probe p = {
         .updated = 0,
     };
-    memcpy(p.deps, m->deps, DEPSIZE);
+    //memcpy(p.deps, m->deps, DEPSIZE);
     i->seq = sd_for_command(r, m->command, &i->key, &p) + 1;
     i->status = PRE_ACCEPTED;
-    i->lt->equal = !p.updated;
+    i->lt->equal = (p.updated == 0);
     memcpy(i->deps, p.deps, DEPSIZE);
     m->seq = i->seq;
-    m->command = i->command;
+    i->command = m->command;
     memcpy(m->deps, i->deps, DEPSIZE);
-    m->ballot = i->ballot;
+    i->ballot = m->ballot;
     m->id = i->key;
     m->type = PRE_ACCEPT;
+    init_fp_timeout(i);
     send_io(r, m);
 }
 
 void pre_accept(struct replica *r, struct instance *i, struct message *m){
     if(is_state(i->status, (COMMITTED | ACCEPTED))) return; //TODO sync to stable storage
     if(!is_state(i->status, (PRE_ACCEPTED | NONE))) return;
-    struct seq_deps_probe p = {
-        .updated = 0
-    };
-    memcpy(p.deps, i->deps, DEPSIZE);
-    uint64_t nseq = max_seq(m->seq, (sd_for_command(r, i->command, &i->key,
-                    &p) + 1));
     if(m->ballot < i->ballot){
         m->ballot = i->ballot;
         m->command = i->command;
@@ -114,7 +116,14 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
         send_io(r, m);
         return;
     }
-    if(!p.updated){
+    struct seq_deps_probe p = {
+        .updated = 0
+    };
+    memcpy(p.deps, i->deps, DEPSIZE);
+    uint64_t nseq = max_seq(m->seq, (sd_for_command(r, i->command, &i->key,
+                    &p) + 1));
+    i->status = PRE_ACCEPTED;
+    if(p.updated == 0){
         i->status = PRE_ACCEPTED_EQ;
     }
     i->command = m->command;
@@ -125,7 +134,7 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
         //TODO barrier
     }
     //TODO sync to stable storage
-    if(i->seq != m->seq || p.updated ||
+    if(i->seq != m->seq || (p.updated > 0) ||
             has_uncommitted_deps(i) || !is_initial_ballot(m->ballot)){
         m->seq = nseq;
         memcpy(m->deps, i->deps, DEPSIZE);
@@ -145,7 +154,7 @@ void pre_accept_ok(struct replica *r, struct instance *i, struct message *m){
             !has_uncommitted_deps(i)){
         do_commit(r, i, m);
     } else if(i->lt->pre_accept_oks >= (N/2)){
-        init_timeout(i);
+        i->status = ACCEPTED;
         m->type = ACCEPT;
         send_io(r, m);
     }
@@ -164,21 +173,19 @@ void pre_accept_reply(struct replica *r, struct instance *i, struct message *m){
         return;
     }
     ++i->lt->pre_accept_oks;
-    i->lt->equal = 0;
     if(m->seq > i->seq){
         i->seq = m->seq;
         i->lt->equal = 1;
     }
     for(int ds = 0; ds < MAX_DEPS; ds++){
-        i->lt->equal += update_deps(i->deps, &m->deps[ds]);
+        i->lt->equal -= update_deps(i->deps, &m->deps[ds]);
     }
-    i->lt->equal = (i->lt->equal == 0)?1:0;
+    i->lt->equal = (i->lt->equal == 1);
     if((i->lt->pre_accept_oks >= N/2) && i->lt->equal
             && is_initial_ballot(i->ballot) && !has_uncommitted_deps(i)){
         do_commit(r, i, m);
         return;
     } else if(i->lt->pre_accept_oks >= (N/2)){
-        init_timeout(i);
         i->status = ACCEPTED;
         m->type = ACCEPT;
         send_io(r, m);
@@ -219,19 +226,17 @@ void accept_reply(struct replica *r, struct instance *i, struct message *m){
         return;
     }
     ++i->lt->accept_oks;
-    if(i->lt->accept_oks > N/2){
+    if(i->lt->accept_oks+1 > N/2){
         do_commit(r, i, m);
     }
 }
 
 void prepare(struct replica *r, struct instance *i, struct message *m){
-    m->from = r->id;
     if(m->ballot < i->ballot){
         m->nack = 1;
         m->type = PREPARE_REPLY;
         send_io(r, m);
         return;
-
     } else {
         i->ballot = m->ballot;
     }
@@ -245,58 +250,48 @@ void prepare(struct replica *r, struct instance *i, struct message *m){
 }
 
 void prepare_reply(struct replica *r, struct instance *i, struct message *m){
-    if(i->lt == 0 || i->lt->recovery_status != PREPARING) return;
+    if(!(i->lt) || i->lt->recovery_status != PREPARING) return;
     if(m->nack){
         i->lt->nacks++;
         return;
     }
     ++i->lt->prepare_oks;
     if(is_state(m->instance_status, (COMMITTED | EXECUTED))){
-        cancel_timeout(i);
-        i->status = COMMITTED;
         i->seq = m->seq;
-        memcpy(i->deps, m->deps, DEPSIZE);
         i->command = m->command;
         m->ballot = i->ballot;
-        m->type = COMMIT;
-        send_io(r, m);
-        send_exec(r, m);
-        if(i->command->writing){
-            send_eo(r, m);
-        }
+        memcpy(i->deps, m->deps, DEPSIZE);
+        do_commit(r, i, m);
         return;
     }
     if(is_state(m->instance_status, ACCEPTED)){
         if(i->lt->max_ballot < m->ballot || is_state(i->lt->ri.status, NONE)){
             i->lt->max_ballot = m->ballot;
-            update_recovery_instance(&i->lt->ri, m, 0, 0);
+            update_recovery_instance(&i->lt->ri, m);
+            i->lt->ri.pre_accept_count++;
         }
     }
     if(is_state(m->instance_status, (PRE_ACCEPTED | PRE_ACCEPTED_EQ)) &&
             (i->lt->ri.status < ACCEPTED)){
-        if(is_state(i->lt->ri.status, NONE)){
-            update_recovery_instance(&i->lt->ri, m, 0, 1);
+        if(is_state(i->lt->ri.status, NONE) ||
+                is_state(m->instance_status, PRE_ACCEPTED_EQ)){
+            update_recovery_instance(&i->lt->ri, m);
+            i->lt->ri.pre_accept_count++;
         } else if((m->seq == i->seq) && equal_deps(m->deps, i->deps)){
-            ++i->lt->ri.pre_accept_count;
-        } else if(is_state(m->instance_status, PRE_ACCEPTED_EQ)){
-            update_recovery_instance(&i->lt->ri, m, 0, 1);
+            i->lt->ri.pre_accept_count++;
         }
         if(m->from == m->id.replica_id){
             i->lt->ri.leader_replied = 1;
-            return;
         }
     }
-    if(i->lt->prepare_oks < N/2){
-        return;
-    }
+    if(i->lt->prepare_oks < N/2) return;
     struct recovery_instance ri = i->lt->ri;
     if(is_state(ri.status, NONE)){
-        m->deps[m->id.replica_id].id.instance_id = m->id.instance_id -1;
+        noop_dep(&m->id, m->deps);
         i->lt->recovery_status = NONE;
         i->status = ACCEPTED;
         memcpy(i->deps, m->deps, DEPSIZE);
         m->command = 0;
-        init_timeout(i);
         m->type = ACCEPT;
         send_io(r, m);
         return;
@@ -309,10 +304,9 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         memcpy(i->deps, ri.deps, DEPSIZE);
         i->status = ACCEPTED;
         i->lt->recovery_status = NONE;
-        m->ballot = i->ballot;
+        m->ballot = i->lt->max_ballot;//i->ballot;
         memcpy(m->deps, i->deps, DEPSIZE);
         m->seq = i->seq;
-        init_timeout(i);
         m->type = ACCEPT;
         send_io(r, m);
     } else if((ri.leader_replied == 0) && ri.pre_accept_count >= (N/2+1)/2){
@@ -346,7 +340,6 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         memcpy(m->deps, i->deps, DEPSIZE);
         m->seq = i->seq;
         m->ballot = i->ballot;
-        init_timeout(i);
         m->type = TRY_PRE_ACCEPT;
         send_io(r, m);
     } else {
@@ -356,7 +349,6 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         m->ballot = i->ballot;
         progress(r, i, m);
     }
-    return;
 }
 
 void try_pre_accept(struct replica *r, struct instance *i, struct message *m){
@@ -398,9 +390,9 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
     if(m->nack){
         ++i->lt->nacks;
         if(m->ballot > i->ballot){
-            m->ballot = larger_ballot(m->ballot, r->id);
-            init_timeout(i);
-            m->type = PRE_ACCEPT;
+            i->ballot = larger_ballot(m->ballot, r->id);
+            m->ballot = i->ballot;
+            m->type = TRY_PRE_ACCEPT;
             send_io(r, m);
             return;
         }
@@ -408,7 +400,6 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
         if(eq_instance_id(&m->conflict.id, &m->id)){
             i->lt->quorum[m->from] = 0;
             i->lt->quorum[m->conflict.id.replica_id] = 0;
-            init_timeout(i);
             m->type = PREPARE;
             send_io(r, m);
             return;
@@ -454,7 +445,6 @@ void try_pre_accept_reply(struct replica *r, struct instance *i,
             i->status = m->instance_status = ACCEPTED;
             i->lt->accept_oks = 0;
             i->lt->recovery_status = NONE;
-            init_timeout(i);
             m->type = ACCEPT;
             send_io(r, m);
         }
@@ -509,7 +499,8 @@ void progress(struct replica *r, struct instance *i, struct message *m){
 }
 
 void slow_path_timeout(struct replica *r, struct timer *t) {
-    struct message *nm = message_from_instance(t->instance);
+    //struct message *nm = message_from_instance(t->instance);
+    struct message *nm = malloc(sizeof(struct message));
     nm->type = PREPARE;
     recover(r, t->instance, nm);
 }
@@ -522,49 +513,35 @@ void fast_path_timeout(struct replica *r, struct timer *t) {
 }
 
 int step(struct replica *r, struct message *m) {
+    if(m->id.instance_id == 0) return -1;
     struct instance *i = find_instance(r, &m->id);
-    int rg = 0;
     if(i == 0){
-        i = instance_from_message(m);
-        if((rg = register_instance(r, i)) && (rg < 0)) return -1;
+        i = new_instance();
+        if(!i) return -1;
+        i->key = m->id;
+        if(register_instance(r, i) < 0) return -1;
         i->ticker.on = slow_path_timeout;
     }
     progress(r, i, m);
-    return rg;
-}
-
-struct leader_tracker *new_tracker(){
-    struct leader_tracker *lt = malloc(sizeof(struct leader_tracker));
-    if(lt == 0) return 0;
-    lt->ri.status = NONE;
-    lt->accept_oks = 0;
-    lt->equal = 0;
-    lt->max_ballot = 0;
-    lt->nacks = 0;
-    lt->prepare_oks = 0;
-    lt->pre_accept_oks = 0;
-    lt->recovery_status = NONE;
-    lt->try_pre_accept_oks = 0;
-    return lt;
+    return 0;
 }
 
 int propose(struct replica *r, struct message *m){
     m->type = PHASE1;
-    struct instance *i = instance_from_message(m);
-    if(i == 0) return -1;
+    struct instance *i = new_instance();
+    if(!i) return -1;
     i->lt = new_tracker();
-    if(i->lt == 0) return -1;
+    if(!i->lt) return -1;
     i->key.instance_id = max_local(r) + 1;
     i->key.replica_id = r->id;
-    int rg = 0;
-    if((rg = register_instance(r, i )) && (rg < 0)) return -1;
+    if(register_instance(r, i ) < 0) return -1;
     progress(r, i, m);
-    return rg;
+    return 0;
 }
 
 void run(struct replica *r){
     int rc = 0;
-    r->running = 1;
+    rc = run_replica(r);
     struct message *m;
     struct chclause cls[] = {
         {CHRECV, r->chan_tick[1], &m, MSG_SIZE},/** advance time **/

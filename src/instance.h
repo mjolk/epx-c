@@ -30,10 +30,10 @@ struct timer {
 struct instance {
     struct timer ticker;
     struct dependency deps[MAX_DEPS];
-    uint8_t changed_deps;
+    uint8_t deps_updated;
     struct instance_id key;
     uint8_t ballot;
-    enum state status;
+    volatile enum state status;
     struct command* command;
     uint64_t seq;
     LLRB_ENTRY(instance) entry;
@@ -67,9 +67,9 @@ SIMPLEQ_HEAD(tickers, timer);
 LLRB_HEAD(instance_index, instance);
 LLRB_PROTOTYPE(instance_index, instance, entry, intcmp);
 
-struct instance *instance_from_message(struct message*);
+struct instance *new_instance();
 struct message *message_from_instance(struct instance*);
-void update_recovery_instance(struct recovery_instance*, struct message*, int, int);
+void update_recovery_instance(struct recovery_instance*, struct message*);
 void instance_reset(struct instance*);
 int is_state(enum state, enum state);
 int is_initial_ballot(uint8_t ballot);
@@ -85,5 +85,6 @@ uint8_t unique_ballot(uint8_t, size_t);
 int has_uncommitted_deps(struct instance *i);
 int is_committed(struct instance*);
 int has_key(struct instance_id*, struct dependency*);
-int lt_dep(size_t, struct dependency*);
+uint64_t lt_dep_replica(size_t, struct dependency*);
 void destroy_instance(struct instance*);
+void set_dep_committed(struct instance_id*, struct dependency*);
