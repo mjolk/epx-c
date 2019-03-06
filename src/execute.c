@@ -90,9 +90,7 @@ struct executor *new_executor(){
 
 struct tarjan_node *pop(struct executor *e){
     struct tarjan_node *ret = SLL_FIRST(&e->stack);
-    if(ret){
-        SLL_REMOVE_HEAD(&e->stack, next);
-    }
+    if(ret) SLL_REMOVE_HEAD(&e->stack, next);
     return ret;
 }
 
@@ -210,7 +208,6 @@ void execute_scc(struct executor *e, scc *comp){
         if(k != kh_end(e->vertices)) kh_del(vertices, e->vertices, k);
         free(comp->nodes[i]);
     }
-
 }
 
 void execute(struct executor *e){
@@ -221,6 +218,9 @@ void execute(struct executor *e){
     reset_exec(e);
 }
 
+int run_execute(struct executor *e){
+    return 0;
+}
 
 void read_committed(struct executor *e, int rep){
     struct instance *i;
