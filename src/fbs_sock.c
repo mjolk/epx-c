@@ -60,9 +60,9 @@ int fbs_sock_attach(int u, struct fbs_sock *s) {
     s->senddone = 0;
     s->recvdone = 0;
     flatcc_builder_init(&s->b);
-    int rc = bsend(s->u, &s->replica_id, 1, s->deadline);
+    int rc = bsend(s->u, &s->replica_id, 1, now() + s->deadline);
     if(rc < 0) {err = errno; goto sock_error;}
-    rc = brecv(s->u, &s->xreplica_id, 1, s->deadline);
+    rc = brecv(s->u, &s->xreplica_id, 1, now() + s->deadline);
     if(rc < 0) {err = errno; goto sock_error;}
     int h = hmake(&s->hvfs);
     if(h < 0) {err = errno; goto sock_error;}
