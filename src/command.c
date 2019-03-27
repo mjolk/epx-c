@@ -18,8 +18,8 @@ int command_from_buffer(struct command *c, const void *buffer) {
         }
         c->id = ns(command_id(cmd));
         ns(span_vec_t) spans = ns(command_spans(cmd));
-        size_t sln = ns(span_vec_len(spans));
-        for(size_t i = 0;i < sln;i++){
+        c->tx_size = ns(span_vec_len(spans));
+        for(size_t i = 0;i < c->tx_size;i++){
             strcpy(c->spans[i].start_key,
                     ns(span_start_key(ns(span_vec_at(spans, i)))));
             strcpy(c->spans[i].end_key,
@@ -60,11 +60,31 @@ int overlaps(struct span *s1, struct span *s2){
     return ret;
 }
 
+int empty_range(struct span *s){
+    return (s->start_key[0] == '\0');
+}
+
+//brute force, can't sort need to copy/preserve/save to maintain order.
+int overlap_sparse(struct command *c1, struct command *c2, struct span *c){
+    int ret = 0;
+    int cnt = 0;
+    for(size_t i = 0;i < c1->tx_size;i++){
+        for(size_t j = 0;j < c2->tx_size;j++){
+            if(overlaps(&c1->spans[i], &c2->spans[j])){
+                c[cnt] = c1->spans[i];
+                ret = 1;
+                cnt++;
+            }
+        }
+    }
+    return ret;
+}
+
 int encloses(struct span *s1, struct span *s2){
     return (strcmp(s1->start_key, s2->start_key) <= 0) &&
         (strcmp(s1->end_key, s2->end_key) >= 0);
 }
 
-int interferes(struct command *c1, struct command *c2) {
-    return (c1->writing || c2->writing) && overlaps(&c1->spans, &c2->spans);
+int interferes(struct command *c1, struct command *c2, struct span *c) {
+    return (c1->writing || c2->writing) && overlap_sparse(c1, c2, c);
 }

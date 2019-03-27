@@ -31,6 +31,7 @@ struct span {
 
 struct command {
     struct span spans[100];
+    size_t tx_size;
     int id;
     enum io_t writing;
     uint8_t *value;
@@ -38,6 +39,7 @@ struct command {
 
 int command_from_buffer(struct command*, const void*);
 epx_command_ref_t command_to_buffer(struct command*, flatcc_builder_t*);
+int empty_range(struct span*);
 int overlaps(struct span*, struct span*);
 int encloses(struct span*, struct span*);
-int interferes(struct command*, struct command*);
+int interferes(struct command*, struct command*, struct span*);

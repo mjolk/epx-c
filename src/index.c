@@ -14,13 +14,13 @@ int spcmp(struct span *sp1, struct span *sp2){
     return strcmp(sp1->start_key, sp2->start_key);
 }
 
-LLRB_HEAD(span_tree, span) rt;
+LLRB_HEAD(span_tree, span);
 LLRB_PROTOTYPE(span_tree, span, entry, spcmp)
-SLL_HEAD(span_group, span) ml;
+SLL_HEAD(span_group, span);
 LLRB_GENERATE(span_tree, span, entry, spcmp);
 LLRB_RANGE_GROUP_GEN(span_tree, span, entry, span_group, next);
 
-void merge(struct span *to_merge, struct span_group *sll){
+void merge(struct span_tree *rt, struct span *to_merge, struct span_group *sll){
     struct span *c, *prev, *next;
     next = SLL_FIRST(sll);
     SLL_INSERT_HEAD(sll, to_merge, next);
@@ -37,11 +37,22 @@ void merge(struct span *to_merge, struct span_group *sll){
                 strcpy(to_merge->end_key, c->end_key);
             }
             SLL_REMOVE_AFTER(prev, next);
-            LLRB_DELETE(span_tree, &rt, c);
+            LLRB_DELETE(span_tree, rt, c);
         }else{
             prev = c;
         }
     }
+}
+
+int read_dependency(struct span_tree *rt, struct command *cmd){
+    int overlaps = 0;
+    for(size_t i = 0;i < cmd->tx_size;i++){
+        if(LLRB_RANGE_OVERLAPS(span_tree, rt, &cmd->spans[i])){
+            overlaps = 1;
+            break;
+        }
+    }
+    return !overlaps;
 }
 
 uint64_t seq_deps_for_command(
@@ -51,9 +62,14 @@ uint64_t seq_deps_for_command(
         struct seq_deps_probe *probe
         ){
     uint64_t mseq = 0;
+    struct span_group ml;
+    struct span_tree rt;
     SLL_INIT(&ml);
     LLRB_INIT(&rt);
+    struct span cspan[TX_SIZE];
     struct instance *ci, *ti;
+    size_t i, j;
+    int covered, add;
     ci = LLRB_MAX(instance_index, index);
     while(ci){
         ti = ci;
@@ -64,20 +80,37 @@ uint64_t seq_deps_for_command(
         if(is_state(ti->status, EXECUTED)){
             break;
         }
-        if(interferes(ti->command, cmd)){
+        memset(cspan, 0, sizeof(struct span)*TX_SIZE);
+        if(interferes(ti->command, cmd, cspan)){
             mseq = max_seq(mseq, ti->seq);
             if(ti->command->writing) {
-                if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
-                            &ti->command->span, &ml, merge)){
-                    probe->updated += add_dep(probe->deps, ti);
-                    struct span nsp = ti->command->span;
-                    LLRB_INSERT(span_tree, &rt, &nsp);
-                    if(!LLRB_RANGE_GROUP_ADD(span_tree, &rt, &cmd->span, &ml,
-                                merge)){
-                        break;
+                covered = 0;
+                add = 0;
+                for(i = 0;i < ti->command->tx_size;i++){
+                    if(empty_range(&cspan[i])) break;
+                    if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
+                                &cspan[i], &ml, merge)){
+                        //on stack -> this needs to be in the root function
+                        //to use its stack
+                        //eg can't refactor this to another function the
+                        //spans would be lost when said function returns
+                        //TESTING whether we need heap memory
+                        struct span nsp = cspan[i];
+                        LLRB_INSERT(span_tree, &rt, &nsp);
+                        add = 1;
+                        covered = 1;
+                        for(j = 0;j < cmd->tx_size;j++){
+                            if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
+                                        &cmd->spans[j], &ml, merge)){
+                                covered = 0;
+                            }
+                        }
+                        if(covered) break;
                     }
                 }
-            }else if(!LLRB_RANGE_OVERLAPS(span_tree, &rt, &ti->command->span)){
+                if(add) probe->updated += add_dep(probe->deps, ti);
+                if(covered) return mseq;
+            }else if(read_dependency(&rt, cmd)){
                 probe->updated += add_dep(probe->deps, ti);
             }
         }
@@ -89,19 +122,59 @@ void barrier_dep(struct instance_index *index, struct dependency *deps) {
     add_dep(deps, LLRB_PREV(instance_index, index, LLRB_MAX(instance_index, index)));
 }
 
-void noop_dep(struct instance_id *id, struct dependency *deps) {
+void noop_dep(struct instance_index *index, struct instance_id *id,
+        struct dependency *deps) {
     memset(deps, 0, DEPSIZE);
-    struct dependency dep = {
-        .id = *id
+    struct instance l = {
+        .key = *id
     };
-    dep.id.instance_id -= 1;
-    update_deps(deps, &dep);
+    struct instance *dep = LLRB_PREV(instance_index, index,
+            LLRB_FIND(instance_index, index, &l));
+    if(!dep) return;
+    add_dep(deps, dep);
+}
+
+void clear_index(struct instance_index *index){
+    struct instance *c, *nxt, *executed;
+    executed = 0;
+    nxt = LLRB_MIN(instance_index, index);
+    while(nxt){
+        c = nxt;
+        nxt = LLRB_NEXT(instance_index, index, nxt);
+        if(c->status < EXECUTED) return;
+        if(is_state(c->status, EXECUTED)){
+            if(executed){
+                destroy_instance(LLRB_DELETE(instance_index, index, executed));
+            }
+            executed = c;
+        }
+    }
+}
+
+int is_dep_conflict(struct instance *ti, uint64_t seq, struct dependency *deps,
+        size_t replica_id){
+    uint64_t lt_instance = lt_dep_replica(ti->key.replica_id, deps);
+    if((ti->key.instance_id > lt_instance) ||
+            ((ti->key.instance_id < lt_instance) &&
+             (ti->seq >= seq) &&
+             ((ti->key.replica_id != replica_id) ||
+              ti->status > PRE_ACCEPTED_EQ))){
+        return 1;
+    }
+    return 0;
 }
 
 struct instance* pre_accept_conflict(struct instance_index *index,
         struct instance *i, struct command *c,
         uint64_t seq, struct dependency *deps){
+    struct span_group ml;
+    struct span_tree rt;
     struct instance *ti;
+    struct span cspan[TX_SIZE];
+    size_t j, k;
+    int add, covered;
+    SLL_INIT(&ml);
+    LLRB_INIT(&rt);
     struct instance *nxt = LLRB_FIND(instance_index, index, i);
     while(nxt){
         ti = nxt;
@@ -119,14 +192,41 @@ struct instance* pre_accept_conflict(struct instance_index *index,
                 i->key.instance_id){
             continue;
         }
-        if(interferes(ti->command, c)){
-            uint64_t lt_instance = lt_dep_replica(ti->key.replica_id, deps);
-            if((ti->key.instance_id > lt_instance) ||
-                    ((ti->key.instance_id < lt_instance) &&
-                     (ti->seq >= seq) &&
-                     ((ti->key.replica_id != i->key.replica_id) ||
-                         ti->status > PRE_ACCEPTED_EQ))){
-                return ti;
+        memset(cspan, 0, sizeof(struct span)*TX_SIZE);
+        if(interferes(ti->command, c, cspan)){
+            if(ti->command->writing) {
+                covered = 0;
+                add = 0;
+                for(j = 0;j < ti->command->tx_size;j++){
+                    if(empty_range(&cspan[j])) break;
+                    if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
+                                &cspan[j], &ml, merge)){
+                        //on stack -> this needs to be in the root function
+                        //to match it's memory lifecycle
+                        //eg can't refactor this to another function the
+                        //spans would be lost when said function returns
+                        //TESTING whether we need heap memory
+                        struct span nsp = cspan[j];
+                        LLRB_INSERT(span_tree, &rt, &nsp);
+                        add = 1;
+                        covered = 1;
+                        for(k = 0;k < c->tx_size;k++){
+                            if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
+                                        &c->spans[k], &ml, merge)){
+                                covered = 0;
+                            }
+                        }
+                        if(covered) break;
+                    }
+                }
+                if(add && is_dep_conflict(ti, seq, deps, i->key.replica_id)){
+                    return ti;
+                }
+                if(covered) return 0;
+            }else if(read_dependency(&rt, c)){
+                if(is_dep_conflict(ti, seq, deps, i->key.replica_id)){
+                    return ti;
+                }
             }
         }
 
