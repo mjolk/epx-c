@@ -20,17 +20,14 @@ uint64_t dh_key(struct instance_id *id){
     return (id->instance_id << 16) | id->replica_id;
 }
 
-void noop(struct replica *s, struct timer *t){
-    return;
-}
-
 void cancel_timeout(struct instance *i){
-    i->ticker.on = noop;
+    i->ticker.on = 0;
     timer_cancel(&i->ticker);
 }
 
 void fast_path_timeout(struct replica*, struct timer*);
 void slow_path_timeout(struct replica*, struct timer*);
+void checkpoint_timeout(struct replica*, struct timer*);
 void init_timeout(struct instance *i){
     timer_set(&i->ticker, 2);
     i->ticker.on = slow_path_timeout;
@@ -55,6 +52,32 @@ static inline void do_commit(struct replica *r, struct instance *i,
 }
 
 void progress(struct replica *r, struct instance*, struct message*);
+
+void checkpoint(struct replica *r, struct message *m){
+    struct instance *i = new_instance();
+    if(!i) return;
+    i->lt = new_tracker();
+    if(!i->lt) return;
+    i->key.instance_id = max_local(r) + 1;
+    i->key.replica_id = r->id;
+    if(register_instance(r, i ) < 0) return;
+    barrier(r, i->deps);
+    if(!m){
+        m = malloc(sizeof(struct message));
+    }
+    m->id = i->key;
+    memcpy(m->deps, i->deps, DEPSIZE);
+    m->ballot = i->ballot;
+    i->status = PRE_ACCEPTED;
+    m->type = PRE_ACCEPT;
+    init_fp_timeout(i);
+    send_io(r, m);
+}
+
+void checkpoint_timeout(struct replica *r, struct timer *t){
+    checkpoint(r, 0);
+    timer_set(t, r->checkpoint<<N);
+}
 
 void recover(struct replica *r, struct instance *i, struct message *m) {
     if(!i->lt){
@@ -131,7 +154,7 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
     memcpy(i->deps, p.deps, DEPSIZE);
     i->seq = nseq;
     if(i->command == 0){
-        //TODO barrier
+        clear(r);
     }
     //TODO sync to stable storage
     if(i->seq != m->seq || (p.updated > 0) ||
@@ -207,7 +230,7 @@ void accept(struct replica *r, struct instance *i, struct message *m){
     i->seq = m->seq;
     memcpy(i->deps, m->deps, DEPSIZE);
     if(m->command == 0){
-        //TODO barrier
+        clear(r);
     }
     m->type = ACCEPT_REPLY;
     send_io(r, m);
@@ -287,11 +310,12 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
     if(i->lt->prepare_oks < N/2) return;
     struct recovery_instance ri = i->lt->ri;
     if(is_state(ri.status, NONE)){
-        noop_dep(&m->id, m->deps);
+        noop(r, &m->id, m->deps);
         i->lt->recovery_status = NONE;
         i->status = ACCEPTED;
         memcpy(i->deps, m->deps, DEPSIZE);
         m->command = 0;
+        m->ballot = i->ballot;
         m->type = ACCEPT;
         send_io(r, m);
         return;
@@ -328,7 +352,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
                 i->lt->nacks = 0;
                 i->lt->quorum[r->id] = 0;
             }
-        } else{
+        } else {
             i->command = ri.command;
             i->seq = ri.seq;
             memcpy(i->deps, ri.deps, DEPSIZE);
@@ -542,6 +566,11 @@ int propose(struct replica *r, struct message *m){
 void run(struct replica *r){
     int rc = 0;
     rc = run_replica(r);
+    if(r->checkpoint){
+        r->ticker.time_out = r->checkpoint<<r->id;
+        r->ticker.elapsed = 0;
+        r->ticker.on = checkpoint_timeout;
+    }
     struct message *m;
     struct chclause cls[] = {
         {CHRECV, r->chan_tick[1], &m, MSG_SIZE},/** advance time **/

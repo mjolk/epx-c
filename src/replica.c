@@ -16,21 +16,21 @@ coroutine void tcl(struct replica *r){
     }
 }
 
-coroutine void recv_cont(struct replica *r){
+coroutine void recv_step(struct replica *r){
     struct message *m;
     while(r->running){
-        if(!chan_recv_mpsc(&r->sync->chan_cont, &m )){
+        if(!chan_recv_spsc(&r->in->chan_step, &m)){
             msleep(now() + 20);
             continue;
         }
-        chsend(r->chan_ii[0], &m, MSG_SIZE, 20);
+        chsend(r->chan_ii[0], &m, MSG_SIZE, -1);
     }
 }
 
 coroutine void recv_propose(struct replica *r){
     struct message *m;
     while(r->running){
-        if(!chan_recv_mpsc(&r->sync->chan_new, &m )){
+        if(!chan_recv_spsc(&r->in->chan_propose, &m)){
             msleep(now() + 20);
             continue;
         }
@@ -39,15 +39,15 @@ coroutine void recv_propose(struct replica *r){
 }
 
 int send_io(struct replica *r, struct message *m){
-    return chan_send_spmc(&r->sync->chan_io, m);
+    return chan_send_mpsc(&r->out->chan_io, m);
 }
 
 int send_eo(struct replica *r, struct message *m){
-    return chan_send_spmc(&r->sync->chan_eo, m);
+    return chan_send_mpsc(&r->out->chan_eo, m);
 }
 
 int send_exec(struct replica *r, struct message *m){
-    return chan_send_spmc(&r->sync->chan_exec, m);
+    return chan_send_spsc(&r->in->chan_exec, m);
 }
 
 int new_replica(struct replica *r){
@@ -67,13 +67,24 @@ error:
     return -1;
 }
 
+void replica_timer(struct replica *r, int time_out){
+    r->ticker.time_out = time_out;
+    r->ticker.elapsed = 0;
+    r->ticker.paused = 0;
+    SIMPLEQ_INSERT_TAIL(&r->timers, &r->ticker, next);
+}
+
 int run_replica(struct replica *r){
     int rc = 0;
     r->running = 1;
-    rc = bundle_go(r->ap, tcl(r));
-    rc = bundle_go(r->ap, recv_propose(r));
-    rc = bundle_go(r->ap, recv_cont(r));
+    replica_timer(r, 2);
+    if(bundle_go(r->ap, tcl(r)) < 0) goto on_error;
+    if(bundle_go(r->ap, recv_propose(r)) < 0) goto on_error;
+    if(bundle_go(r->ap, recv_step(r)) < 0) goto on_error;
     return rc;
+on_error:
+    r->running = 0;
+    return -1;
 }
 
 void destroy_replica(struct replica *r){
@@ -121,7 +132,14 @@ void tick(struct replica *r) {
     }
 }
 
-void register_timer(struct replica *r, struct instance *i, int time_out) {
+void clear(struct replica *r){
+    for(int i = 0;i < N;i++){
+       clear_index(&r->index[i]);
+    }
+    timer_set(&r->ticker, r->checkpoint<<N);
+}
+
+void instance_timer(struct replica *r, struct instance *i, int time_out) {
     i->ticker.time_out = time_out;
     i->ticker.elapsed = 0;
     i->ticker.instance = i;
@@ -138,7 +156,7 @@ int register_instance(struct replica *r, struct instance *i) {
         destroy_instance(i);
         return -1;
     }
-    register_timer(r, i, 2);
+    instance_timer(r, i, 2);
     return 0;
 }
 
@@ -157,6 +175,17 @@ uint64_t sd_for_command(struct replica *r, struct command *c,
         mseq = max_seq(mseq, seq_deps_for_command(&r->index[rc], c, ignore, p));
     }
     return mseq;
+}
+
+void noop(struct replica *r, struct instance_id *id, struct dependency *deps){
+    noop_dep(&r->index[id->replica_id], id, deps);
+}
+
+void barrier(struct replica *r, struct dependency *deps){
+    memset(deps, 0, DEPSIZE);
+    for(int i = 0;i < N;i++){
+        barrier_dep(&r->index[i], deps);
+    }
 }
 
 struct instance* pac_conflict(struct replica *r, struct instance *i,
