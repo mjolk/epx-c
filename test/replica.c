@@ -12,10 +12,6 @@ void extend_timer(struct replica *r, struct timer *c){
     c->time_out = 2;
 }
 
-void noop (struct replica *s, struct timer *t){
-    return;
-}
-
 void check_cnt_elapsed(struct replica *r, int chc, int elapsed){
     struct timer *tt;
     int cnt = 0;
@@ -38,9 +34,9 @@ coroutine void time_elapsed(struct replica *r, int chtick){
 }
 
 int main(){
-    struct sync s;
+    struct io_sync s;
     struct replica r;
-    r.sync = &s;
+    r.out = &s;
     r.frequency = 100;
     r.id = 1;
     assert(new_replica(&r) == 0);
@@ -50,21 +46,21 @@ int main(){
             .instance_id = 1
         }
     };
-    register_timer(&r, &i, 4);
+    instance_timer(&r, &i, 4);
     for(int t = 0;t < 4;t++){
         tick(&r);
     }
     assert(i.ticker.elapsed == 4);
     assert(!SIMPLEQ_FIRST(&r.timers));
     i.ticker.on = extend_timer;
-    register_timer(&r, &i, 4);
+    instance_timer(&r, &i, 4);
     for(int t = 0;t < 4;t++){
         tick(&r);
     }
     assert(i.ticker.elapsed == 0);
     assert(i.ticker.time_out == 2);
     assert(SIMPLEQ_FIRST(&r.timers));
-    i.ticker.on = noop;
+    i.ticker.on = 0;
     for(int t = 0;t < 2;t++){
         tick(&r);
     }
@@ -82,9 +78,9 @@ int main(){
             .instance_id = 3
         }
     };
-    register_timer(&r, &i, 3);
-    register_timer(&r, &i2, 2);
-    register_timer(&r, &i3, 1);
+    instance_timer(&r, &i, 3);
+    instance_timer(&r, &i2, 2);
+    instance_timer(&r, &i3, 1);
     tick(&r);
     assert(i3.ticker.elapsed == 1);
     check_cnt_elapsed(&r, 2, 1);
@@ -95,9 +91,9 @@ int main(){
     assert(i.ticker.elapsed == 3);
     check_cnt_elapsed(&r, 0, 3);
 
-    register_timer(&r, &i, 1);
-    register_timer(&r, &i2, 2);
-    register_timer(&r, &i3, 3);
+    instance_timer(&r, &i, 1);
+    instance_timer(&r, &i2, 2);
+    instance_timer(&r, &i3, 3);
     tick(&r);
     assert(i.ticker.elapsed == 1);
     check_cnt_elapsed(&r, 2, 1);
@@ -115,10 +111,10 @@ int main(){
         }
     };
 
-    register_timer(&r, &i4, 4);
-    register_timer(&r, &i, 1);
-    register_timer(&r, &i2, 3);
-    register_timer(&r, &i3, 2);
+    instance_timer(&r, &i4, 4);
+    instance_timer(&r, &i, 1);
+    instance_timer(&r, &i2, 3);
+    instance_timer(&r, &i3, 2);
     tick(&r);
     assert(i.ticker.elapsed == 1);
     check_cnt_elapsed(&r, 3, 1);

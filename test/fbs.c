@@ -23,16 +23,16 @@ void* to_buffer(flatcc_builder_t *b, struct message *m){
 }
 
 int main(){
-    struct span sp = {
+    struct span sp[1] ={{
         .start_key = "1",
         .end_key = "4"
-    };
+    }};
     struct command cmd = {
-        .span = sp,
         .id = 1,
         .writing = WRITE,
         .value = 0
     };
+    memcpy(cmd.spans, sp, sizeof(struct span));
     struct message m = {
         .type = PRE_ACCEPT,
         .to = 2,
@@ -55,7 +55,7 @@ int main(){
         .start = 1,
         .stop = 2
     };
-    memset(m.deps, 0, sizeof(struct dependency)*N);
+    memset(m.deps, 0, sizeof(struct dependency)*MAX_DEPS);
 
     flatcc_builder_t builder;
     flatcc_builder_init(&builder);
@@ -64,16 +64,16 @@ int main(){
     if(b == 0) return 1;
 
     struct message decoded;
-    struct span spd = {
+    struct span spd[1] = {{
         .start_key = "0",
         .end_key = "0"
-    };
+    }};
     struct command dcmd = {
-        .span = spd,
         .id = 0,
         .writing = READ,
         .value = 0
     };
+    memcpy(dcmd.spans, spd, sizeof(struct span));
     decoded.command = &dcmd;
     if(message_from_buffer(&decoded, b)){
         return 1;
@@ -89,8 +89,8 @@ int main(){
     assert(decoded.instance_status == PRE_ACCEPTED_EQ);
     assert(decoded.id.replica_id == 1);
     assert(decoded.id.instance_id == 1);
-    assert(strcmp(decoded.command->span.start_key, "1") == 0);
-    assert(strcmp(decoded.command->span.end_key, "4") == 0);
+    assert(strcmp(decoded.command->spans[0].start_key, "1") == 0);
+    assert(strcmp(decoded.command->spans[0].end_key, "4") == 0);
     assert(decoded.command->id == 1);
     assert(decoded.command->writing == WRITE);
 

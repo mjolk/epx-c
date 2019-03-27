@@ -9,9 +9,9 @@
 
 struct command *create_command(char *start_key, char *end_key, enum io_t rw){
     struct command *cmd = malloc(sizeof(struct command));
-    strcpy(cmd->span.start_key, start_key);
-    strcpy(cmd->span.end_key, end_key);
-    memset(cmd->span.max, 0, KEY_SIZE);
+    strcpy(cmd->spans[0].start_key, start_key);
+    strcpy(cmd->spans[0].end_key, end_key);
+    memset(cmd->spans[0].max, 0, KEY_SIZE);
     cmd->writing = rw;
     return cmd;
 }
@@ -39,7 +39,7 @@ void copy_command(struct message *m){
 
 void check(struct replica *r, enum message_type t, size_t s, size_t rid){
     struct message *m;
-    int rc = chan_recv_spsc(&r->sync->chan_io, &m);
+    int rc = chan_recv_spsc(&r->out->chan_io, &m);
     assert(rc > 0);
     assert(m->id.instance_id == 1);
     assert(m->id.replica_id == rid);
@@ -48,18 +48,17 @@ void check(struct replica *r, enum message_type t, size_t s, size_t rid){
 }
 
 void no_conflict(){
-    struct sync s;
+    struct io_sync s;
     chan_init(&s.chan_io);
     chan_init(&s.chan_eo);
-    chan_init(&s.chan_exec);
     struct replica r1;
     struct replica r2;
     new_replica(&r1);
     new_replica(&r2);
     r1.id = 0;
     r2.id = 1;
-    r1.sync = &s;
-    r2.sync = &s;
+    r1.out = &s;
+    r2.out = &s;
     struct message *m = create_message(PHASE1, "10", "20", WRITE);
     assert(propose(&r1, m) == 0);
     check(&r1, PRE_ACCEPT, 1, 0);
@@ -75,18 +74,17 @@ void no_conflict(){
 }
 
 void simple_conflict(){
-    struct sync s;
+    struct io_sync s;
     chan_init(&s.chan_io);
     chan_init(&s.chan_eo);
-    chan_init(&s.chan_exec);
     struct replica r1;
     struct replica r2;
     new_replica(&r1);
     new_replica(&r2);
     r1.id = 0;
     r2.id = 1;
-    r1.sync = &s;
-    r2.sync = &s;
+    r1.out = &s;
+    r2.out = &s;
     struct message *m1 = create_message(PHASE1, "10", "20", WRITE);
     struct message *m2 = create_message(PHASE1, "06", "18", WRITE);
     assert(propose(&r1, m1) == 0);
@@ -110,18 +108,17 @@ void simple_conflict(){
 }
 
 void recovery0(){
-    struct sync s;
+    struct io_sync s;
     chan_init(&s.chan_io);
     chan_init(&s.chan_eo);
-    chan_init(&s.chan_exec);
     struct replica r1;
     struct replica r2;
     new_replica(&r1);
     new_replica(&r2);
     r1.id = 0;
     r2.id = 1;
-    r1.sync = &s;
-    r2.sync = &s;
+    r1.out = &s;
+    r2.out = &s;
     struct message *m0 = create_message(PHASE1, "10", "20", WRITE);
     assert(m0);
     struct instance *ri0 = instance_from_message(m0);
@@ -201,17 +198,17 @@ void recovery0(){
     recover(&r1, ri0, recovery_msg);
     struct message *rep;
     int rc = 0;
-    rc = chan_recv_spsc(&r1.sync->chan_io, &rep);
+    rc = chan_recv_spsc(&r1.out->chan_io, &rep);
     assert(rc >= 0);
     assert(rep->ballot != 0);
     assert(is_state(ri0->lt->recovery_status, PREPARING));
     assert(step(&r2, rep) == 0);
-    rc = chan_recv_spsc(&r2.sync->chan_io, &rep);
+    rc = chan_recv_spsc(&r2.out->chan_io, &rep);
     assert(rc >= 0);
     assert(rep->instance_status == PRE_ACCEPTED_EQ);
     assert(rep->type == PREPARE_REPLY);
     assert(step(&r1, rep) == 0);
-    rc = chan_recv_spsc(&r1.sync->chan_io, &rep);
+    rc = chan_recv_spsc(&r1.out->chan_io, &rep);
     assert(rc >= 0);
     assert(ri0->lt->prepare_oks == 1);
     assert(rep->ballot != 0);

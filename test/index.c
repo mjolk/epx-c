@@ -32,13 +32,13 @@ void print_tree(struct span *n)
 
 struct instance *create_instance(size_t rid, const char *start_key,
         const char *end_key, enum io_t rw){
-    struct span s;
-    strcpy(s.start_key, start_key);
-    strcpy(s.end_key, end_key);
-    strcpy(s.max, "00");
+    struct span s[1];
+    strcpy(s[0].start_key, start_key);
+    strcpy(s[0].end_key, end_key);
+    memset(s[0].max, 0, KEY_SIZE);
     struct command *cmd = malloc(sizeof(struct command));
     assert(cmd != 0);
-    cmd->span = s;
+    memcpy(cmd->spans, s, sizeof(struct span));
     cmd->id = 1111;
     cmd->writing = rw;
     cmd->value = 0;
@@ -91,9 +91,12 @@ int main(){
         .id = 1,
         .writing = WRITE
     };
-    strcpy(cmd.span.start_key, "02");
-    strcpy(cmd.span.end_key, "09");
-    strcpy(cmd.span.max, "00");
+    struct span ns = {
+        .start_key = "02",
+        .end_key = "09"
+    };
+    memset(ns.max, 0, KEY_SIZE);
+    memcpy(cmd.spans, &ns, sizeof(struct span));
     struct seq_deps_probe p = {
         .updated = 0
     };
@@ -102,11 +105,10 @@ int main(){
     assert(p.deps[0].id.instance_id == 7);
     assert(p.deps[1].id.instance_id == 3);
     p.deps[0].committed = 0;
-    noop_deps(&index, 1, p.deps);
-    assert(p.deps[0].committed == 1);
-    strcpy(cmd.span.start_key, "01");
-    strcpy(cmd.span.end_key, "03");
-    strcpy(cmd.span.max, "00");
+    strcpy(ns.start_key, "01");
+    strcpy(ns.end_key, "03");
+    memset(ns.max, 0, KEY_SIZE);
+    memcpy(cmd.spans, &ns, sizeof(struct span));
     p.deps[0].id.instance_id = 9;
     p.deps[1].id.replica_id = 1;
     struct instance *pac_inst = pre_accept_conflict(&index, inst, &cmd, 0,

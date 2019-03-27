@@ -12,13 +12,11 @@ struct dependency tdeps2[MAX_DEPS];
 
 struct instance *create_instance(size_t rid, const char *start_key,
         const char *end_key, enum io_t rw){
-    struct span s;
-    strcpy(s.start_key, start_key);
-    strcpy(s.end_key, end_key);
-    memset(s.max, 0, KEY_SIZE);
     struct command *cmd = malloc(sizeof(struct command));
     assert(cmd != 0);
-    cmd->span = s;
+    strcpy(cmd->spans[0].start_key, start_key);
+    strcpy(cmd->spans[0].end_key, end_key);
+    memset(cmd->spans[0].max, 0, KEY_SIZE);
     cmd->id = 1111;
     cmd->writing = rw;
     cmd->value = 0;
@@ -82,8 +80,8 @@ int main(){
     assert(m->ballot == 1);
     assert(m->command->id == 1111);
     assert(m->command->writing == WRITE);
-    assert(strncmp(m->command->span.start_key, "10", KEY_SIZE) == 0);
-    assert(strncmp(m->command->span.end_key, "20", KEY_SIZE) == 0);
+    assert(strncmp(m->command->spans[0].start_key, "10", KEY_SIZE) == 0);
+    assert(strncmp(m->command->spans[0].end_key, "20", KEY_SIZE) == 0);
     assert(m->id.replica_id == 1);
     assert(m->seq == 2);
     for(int l = 0;l < MAX_DEPS;l++){
@@ -103,8 +101,8 @@ int main(){
     assert(i2 != 0);
     assert(i2->command->id == 1111);
     assert(i2->command->writing == WRITE);
-    assert(strncmp(i2->command->span.start_key, "10", KEY_SIZE) == 0);
-    assert(strncmp(i2->command->span.end_key, "20", KEY_SIZE) == 0);
+    assert(strncmp(i2->command->spans[0].start_key, "10", KEY_SIZE) == 0);
+    assert(strncmp(i2->command->spans[0].end_key, "20", KEY_SIZE) == 0);
     assert(i2->key.instance_id == 345);
     assert(i2->key.replica_id == 4);
     assert(i2->seq == 6);
