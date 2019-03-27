@@ -8,12 +8,19 @@
 #include "../include/epx.h"
 #include "channel.h"
 
-struct sync {
-    int l_fd;
-    int r_fd[N];
-    chan chan_io;
-    chan chan_exec;
-    chan chan_eo;
-    chan chan_cont;
-    chan chan_new;
+enum connection_status {
+    ALIVE,
+    CONNECTING,
+    DEAD
+};
+
+struct replica_sync {
+    chan chan_exec;//OUT instances ready to be executed
+    chan chan_step;//IN messages from other replicas
+    chan chan_propose;//IN messages from clients
+};
+
+struct io_sync {
+    chan chan_eo;//OUT events for clients(external out)
+    chan chan_io;//OUT internal node communications(internal out)
 };
