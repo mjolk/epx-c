@@ -8,14 +8,14 @@
 #include "command.h"
 
 enum state {
-    NONE = 1,
-    PRE_ACCEPTED = 2,
-    PRE_ACCEPTED_EQ = 4,
-    ACCEPTED = 8,
-    PREPARING = 16,
-    TRY_PRE_ACCEPTING = 32,
-    COMMITTED = 64,
-    EXECUTED = 128
+    NONE = 0x01,
+    PRE_ACCEPTED = 0x02,
+    PRE_ACCEPTED_EQ = 0x04,
+    ACCEPTED = 0x08,
+    PREPARING = 0x10,
+    TRY_PRE_ACCEPTING = 0x20,
+    COMMITTED = 0x40,
+    EXECUTED = 0x80
 } state;
 
 
@@ -34,6 +34,7 @@ enum message_type {
 };
 
 struct message {
+    uint8_t ref_count;
     enum message_type type;
     size_t to;
     uint8_t ballot;

@@ -8,7 +8,6 @@
 #include "message.h"
 #include <stdio.h>
 
-
 void instance_data_from_buffer(struct message *m, const void *buffer){
     if(buffer == 0){
         return;
