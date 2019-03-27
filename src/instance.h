@@ -68,6 +68,7 @@ LLRB_HEAD(instance_index, instance);
 LLRB_PROTOTYPE(instance_index, instance, entry, intcmp);
 
 struct instance *new_instance();
+struct instance *instance_from_message(struct message*);
 struct message *message_from_instance(struct instance*);
 void update_recovery_instance(struct recovery_instance*, struct message*);
 void instance_reset(struct instance*);

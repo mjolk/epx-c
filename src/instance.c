@@ -21,6 +21,18 @@ struct message *message_from_instance(struct instance *i){
     return nm;
 }
 
+struct instance *instance_from_message(struct message *m){
+    struct instance *i = malloc(sizeof(struct instance));
+    if(!i){ errno = ENOMEM; return 0;}
+    i->ballot = m->ballot;
+    i->seq = m->seq;
+    i->status = NONE;
+    i->command = m->command;
+    i->deps_updated = 0;
+    i->lt = 0;
+    return i;
+}
+
 struct instance *new_instance(){
     struct instance *i = malloc(sizeof(struct instance));
     if(!i){ errno = ENOMEM; return 0;}
