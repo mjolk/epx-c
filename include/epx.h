@@ -16,4 +16,6 @@
 #define TX_SIZE 100
 #define CLIENT_PORT 5552
 #define NODE_PORT 5551
+#define MAX_LATENCY 60
+#define PREFIX_SIZE 4
 #endif
