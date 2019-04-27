@@ -42,6 +42,7 @@ struct instance *create_instance(size_t rid, const char *start_key,
     cmd->id = 1111;
     cmd->writing = rw;
     cmd->value = 0;
+    cmd->tx_size = 1;
     struct instance *i = malloc(sizeof(struct instance));
     assert(i != 0);
     i->key.replica_id = rid;
@@ -89,7 +90,8 @@ int main(){
     }
     struct command cmd = {
         .id = 1,
-        .writing = WRITE
+        .writing = WRITE,
+        .tx_size = 1
     };
     struct span ns = {
         .start_key = "02",

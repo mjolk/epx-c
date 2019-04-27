@@ -35,8 +35,10 @@ coroutine void time_elapsed(struct replica *r, int chtick){
 
 int main(){
     struct io_sync s;
+    struct replica_sync rs;
     struct replica r;
     r.out = &s;
+    r.in = &rs;
     r.frequency = 100;
     r.id = 1;
     assert(new_replica(&r) == 0);

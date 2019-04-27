@@ -13,6 +13,7 @@ struct command *create_command(char *start_key, char *end_key, enum io_t rw){
     strcpy(cmd->spans[0].end_key, end_key);
     memset(cmd->spans[0].max, 0, KEY_SIZE);
     cmd->writing = rw;
+    cmd->tx_size = 1;
     return cmd;
 }
 
@@ -49,6 +50,7 @@ void check(struct replica *r, enum message_type t, size_t s, size_t rid){
 
 void no_conflict(){
     struct io_sync s;
+    struct replica_sync rs;
     chan_init(&s.chan_io);
     chan_init(&s.chan_eo);
     struct replica r1;
@@ -59,6 +61,8 @@ void no_conflict(){
     r2.id = 1;
     r1.out = &s;
     r2.out = &s;
+    r1.in = &rs;
+    r2.in = &rs;
     struct message *m = create_message(PHASE1, "10", "20", WRITE);
     assert(propose(&r1, m) == 0);
     check(&r1, PRE_ACCEPT, 1, 0);
@@ -75,6 +79,7 @@ void no_conflict(){
 
 void simple_conflict(){
     struct io_sync s;
+    struct replica_sync rs;
     chan_init(&s.chan_io);
     chan_init(&s.chan_eo);
     struct replica r1;
@@ -85,6 +90,8 @@ void simple_conflict(){
     r2.id = 1;
     r1.out = &s;
     r2.out = &s;
+    r1.in = &rs;
+    r2.in = &rs;
     struct message *m1 = create_message(PHASE1, "10", "20", WRITE);
     struct message *m2 = create_message(PHASE1, "06", "18", WRITE);
     assert(propose(&r1, m1) == 0);
@@ -109,6 +116,7 @@ void simple_conflict(){
 
 void recovery0(){
     struct io_sync s;
+    struct replica_sync rs;
     chan_init(&s.chan_io);
     chan_init(&s.chan_eo);
     struct replica r1;
@@ -119,6 +127,8 @@ void recovery0(){
     r2.id = 1;
     r1.out = &s;
     r2.out = &s;
+    r1.in = &rs;
+    r2.in = &rs;
     struct message *m0 = create_message(PHASE1, "10", "20", WRITE);
     assert(m0);
     struct instance *ri0 = instance_from_message(m0);
@@ -127,7 +137,7 @@ void recovery0(){
     ri0->status = PRE_ACCEPTED;
     ri0->seq = 3;
     ri0->key.instance_id = 4;
-    ri0->key.replica_id = 0;
+    ri0->key.replica_id = 1;
     ri1->seq = 3;
     ri1->status = PRE_ACCEPTED_EQ;
     ri1->key.instance_id = 4;

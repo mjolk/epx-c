@@ -68,8 +68,8 @@ int main(){
        .committed = 0
     };
     assert(update_deps(tdeps, &ndep) > 0);
-    assert(tdeps[MAX_DEPS-1].id.instance_id == 1009);
-    assert(tdeps[MAX_DEPS-1].committed == 0);
+    assert(tdeps[0].id.instance_id == 1009);
+    assert(tdeps[0].committed == 0);
     assert(update_deps(tdeps, &ndep) == 0);
     struct instance *i = create_instance(1, "10", "20", WRITE);
     assert(i != 0);
@@ -98,6 +98,7 @@ int main(){
     msg.seq = 6;
     memcpy(msg.deps, tdeps2, DEPSIZE);
     struct instance *i2 = instance_from_message(&msg);
+    i2->key = msg.id;
     assert(i2 != 0);
     assert(i2->command->id == 1111);
     assert(i2->command->writing == WRITE);

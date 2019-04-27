@@ -143,7 +143,7 @@ void pre_accept(struct replica *r, struct instance *i, struct message *m){
         .updated = 0
     };
     memcpy(p.deps, i->deps, DEPSIZE);
-    uint64_t nseq = max_seq(m->seq, (sd_for_command(r, i->command, &i->key,
+    uint64_t nseq = max_seq(m->seq, (sd_for_command(r, m->command, &i->key,
                     &p) + 1));
     i->status = PRE_ACCEPTED;
     if(p.updated == 0){
@@ -328,7 +328,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         memcpy(i->deps, ri.deps, DEPSIZE);
         i->status = ACCEPTED;
         i->lt->recovery_status = NONE;
-        m->ballot = i->lt->max_ballot;//i->ballot;
+        m->ballot = i->ballot;//i->lt->max_ballot;
         memcpy(m->deps, i->deps, DEPSIZE);
         m->seq = i->seq;
         m->type = ACCEPT;

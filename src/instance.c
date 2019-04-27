@@ -160,11 +160,12 @@ int update_deps(struct dependency *deps, struct dependency *d) {
         if(deps[i].id.instance_id < d->id.instance_id){
             j = MAX_DEPS-1;
             while(j > i){
-                if(deps[j-1].id.instance_id == 0) continue;
-                deps[j] = deps[j -1];
                 j--;
+                if(deps[j+1].id.instance_id == 0) continue;
+                deps[j+1] = deps[j];
             }
             deps[i] = *d;
+            size_t ss = sizeof(deps);
             return 1;
         }
     }

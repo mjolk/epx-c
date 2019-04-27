@@ -119,7 +119,8 @@ uint64_t seq_deps_for_command(
 }
 
 void barrier_dep(struct instance_index *index, struct dependency *deps) {
-    add_dep(deps, LLRB_PREV(instance_index, index, LLRB_MAX(instance_index, index)));
+    add_dep(deps, LLRB_PREV(instance_index, index,
+                LLRB_MAX(instance_index, index)));
 }
 
 void noop_dep(struct instance_index *index, struct instance_id *id,
