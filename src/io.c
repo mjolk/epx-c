@@ -10,8 +10,6 @@
 #include "io.h"
 #include "llrb-interval/slist.h"
 #include "llrb-interval/llrb-interval.h"
-#define MAX_LATENCY 60
-#define PREFIX_SIZE 4
 
 int spcmp(struct registered_span *sp1, struct registered_span *sp2){
     return strcmp(sp1->start_key, sp2->start_key);
@@ -21,10 +19,9 @@ SLL_HEAD(client_group, span);
 LLRB_GENERATE(client_tree, registered_span, entry, spcmp);
 LLRB_RANGE_GROUP_GEN(client_tree, registered_span, entry, client_group, next);
 
-void step_writer(struct connection*);
-void step_reader(struct connection*);
+void writer(struct connection*);
+void reader(struct connection*);
 
-//does this work, need extra pointer indirect/return new array?
 void update_quorum(size_t *quorum, struct connection *ns){
     for(int ci = 0;ci < N;ci++){
         struct connection reader = ns[ci];
@@ -47,8 +44,8 @@ int expired(struct connection *c){
 
 int run_conn(struct connection *c){
     c->status = ALIVE;
-    bundle_go(c->ap, step_writer(c));
-    bundle_go(c->ap, step_reader(c));
+    bundle_go(c->ap, writer(c));
+    bundle_go(c->ap, reader(c));
     return 0;
 };
 
@@ -70,35 +67,43 @@ void fd_close(int fd){
     close(fd);
 }
 
-int new_connection(struct connection *c){
-    if(slow(c)) return -1;
-    c->status = CONNECTING;
-    c->fbs.deadline = 80;
+void init_fbs(struct connection *c){
+    c->fbs.deadline = 40;
     c->fbs.hdrlen = 4;
     c->fbs.decode = message_from_buffer;
     c->fbs.encode = message_to_buffer;
+    c->ap = bundle();
+    c->latency = 0;
+    c->back_off = 1;
+    c->p = TCP;
+    c->status = CONNECTING;
     chan_init(&c->chan_read);
-    if(c->fd > 0){
-        c->handle = tcp_fromfd(c->fd);
-    } else {
-        c->handle = tcp_connect(&c->addr, now() + 160);
-    }
+}
+
+int run_fbs(struct connection *c){
     c->handle = fbs_sock_attach(c->handle, &c->fbs);
     if(c->handle < 0 && c->fd > 0) {
-        goto release_fd;
+        fd_close(c->fd);
+        return -1;
     } else if(c->handle < 0){
-        goto release_handle;
+        hclose(c->handle);
+        return -1;
     }
     size_t xreplica_id = fbs_sock_remote_id(c->handle);
     c->xreplica_id = xreplica_id;
     run_conn(c);
     return 0;
-release_handle:
-    hclose(c->handle);
-    return -1;
-release_fd:
-    fd_close(c->fd);
-    return -1;
+}
+
+int new_connection(struct connection *c){
+    if(slow(c)) return -1;
+    init_fbs(c);
+    if(c->fd > 0){
+        c->handle = tcp_fromfd(c->fd);
+    } else {
+        c->handle = tcp_connect(&c->addr, now() + 160);
+    }
+    return run_fbs(c);
 }
 
 void update_nodes(struct connection *c){
@@ -134,7 +139,6 @@ void *try_connect(void *conn){
 }
 
 int create_connection(struct node_io *n, int fd){
-    int rc = 0;
     pthread_t id;
     struct connection nns;
     nns.chan_write = &n->chan_step;
@@ -155,6 +159,10 @@ coroutine void node_listener(struct node_io *n){
     }
 }
 
+coroutine void run_client(struct connection *c){
+
+}
+
 coroutine void client_listener(struct node_io *n){
     int ls = listener(CLIENT_PORT);
     if(ls <= 0) return;
@@ -164,13 +172,20 @@ coroutine void client_listener(struct node_io *n){
             msleep(now() + 60);
             continue;
         }
+        struct connection c;
+        c.chan_write = &n->chan_propose;
+        c.n = n;
+        c.handle = chandle;
+        init_fbs(&c);
+        run_fbs(&c);
+        bundle_go(n->ap, run_client(&c));
     }
 }
 
 void *client_access(void *nn){
     struct node_io *n = nn;
-    
     bundle_go(n->ap, client_listener(n));
+    return 0;
 }
 
 int start(struct node_io *n){
@@ -189,27 +204,24 @@ void stop(struct node_io *n){
     hclose(n->ap);
 }
 
-int write_step(struct connection *c, struct message *m){
+int in(struct connection *c, struct message *m){
     return chan_send_mpsc(c->chan_write, m);
 }
 
-int read_step(struct connection *c, struct message *m){
+int out(struct connection *c, struct message *m){
     if(!chan_recv_spsc(&c->chan_read, &m)){
         return -1;
     }
     return 0;
 }
-int write_propose(struct node_io *n, struct message *m){
-    return chan_send_mpsc(&n->sync->chan_propose, m);
-}
 
 int write_message(struct connection *c, struct message *m){
-    return msend(c->handle, m, sizeof(struct message), 40);
+    return msend(c->handle, m, sizeof(struct message), -1);
 }
 
 ssize_t read_message(struct connection *c, struct message *m){
     ssize_t s;
-    s = mrecv(c->handle, m, sizeof(struct message), 60);
+    s = mrecv(c->handle, m, sizeof(struct message), -1);
     if(s <= 0){
         return -1;
     }
@@ -221,7 +233,7 @@ ssize_t read_message(struct connection *c, struct message *m){
     return s;
 }
 
-coroutine void step_writer(struct connection *c){
+coroutine void writer(struct connection *c){
     int rc = 0;
     struct message m;//temp storage for message to be received
     struct message *rcv;
@@ -233,16 +245,16 @@ coroutine void step_writer(struct connection *c){
             msleep(now() + 20);
             continue;
         }
-        rc = write_step(c, rcv);
+        rc = in(c, rcv);
         if(rc <= 0) msleep(now() + 20);//TODO log lost messages.
     }
 }
 
-coroutine void step_reader(struct connection *c){
+coroutine void reader(struct connection *c){
     int rc = 0;
     struct message *m = 0;
     while(c->status == ALIVE){
-        int s = read_step(c, m);
+        int s = out(c, m);
         if(s <= 0){
             msleep(now() + 20);
             continue;
