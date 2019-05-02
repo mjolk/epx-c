@@ -7,6 +7,44 @@
 
 #include "../src/epaxos.c"
 
+struct span sp1[4] = {
+    {
+        .start_key = "05",
+        .end_key = "10"
+    },
+    {
+        .start_key = "20",
+        .end_key = "40"
+    },
+    {
+        .start_key = "08",
+        .end_key = "18"
+    },
+    {
+        .start_key = "26",
+        .end_key = "51"
+    }
+};
+
+struct span sp2[4] = {
+    {
+        .start_key = "01",
+        .end_key = "05"
+    },
+    {
+        .start_key = "54",
+        .end_key = "80"
+    },
+    {
+        .start_key = "38",
+        .end_key = "45"
+    },
+    {
+        .start_key = "19",
+        .end_key = "19"
+    }
+};
+
 struct command *create_command(char *start_key, char *end_key, enum io_t rw){
     struct command *cmd = malloc(sizeof(struct command));
     strcpy(cmd->spans[0].start_key, start_key);
@@ -106,6 +144,44 @@ void simple_conflict(){
     assert(step(&r2, m1) == 0);
     check(&r2, ACCEPT_REPLY, 2, 0);
     assert(step(&r1, m1) == 0);
+    check(&r1, COMMIT, 2, 0);
+    destroy_replica(&r1);
+    destroy_replica(&r2);
+    free(m1);
+    free(m2);
+}
+
+void simple_conflict_tx(){
+    struct io_sync s;
+    struct replica_sync rs;
+    chan_init(&s.chan_io);
+    chan_init(&s.chan_eo);
+    struct replica r1;
+    struct replica r2;
+    new_replica(&r1);
+    new_replica(&r2);
+    r1.id = 0;
+    r2.id = 1;
+    r1.out = &s;
+    r2.out = &s;
+    r1.in = &rs;
+    r2.in = &rs;
+    struct message *m1 = create_message(PHASE1, "10", "20", WRITE);
+    struct message *m2 = create_message(PHASE1, "06", "18", WRITE);
+    memcpy(m1->command->spans, sp1, sizeof(struct span)*4);
+    memcpy(m2->command->spans, sp2, sizeof(struct span)*4);
+    m1->command->tx_size = m2->command->tx_size = 4;
+    assert(propose(&r1, m1) == 0);
+    assert(propose(&r2, m2) == 0);
+    check(&r1, PRE_ACCEPT, 1, 0);
+    check(&r2, PRE_ACCEPT, 1, 1);
+    copy_command(m1);
+    assert(step(&r2, m1) == 0);
+    check(&r2, PRE_ACCEPT_REPLY, 2, 0);
+    assert(step(&r1, m1) == 0);
+    check(&r1, ACCEPT, 2, 0);
+    assert(step(&r2, m1) == 0);
+    check(&r2, ACCEPT_REPLY, 2, 0);
     assert(step(&r1, m1) == 0);
     check(&r1, COMMIT, 2, 0);
     destroy_replica(&r1);
@@ -231,6 +307,7 @@ void recovery(){
 int main(){
     no_conflict();
     simple_conflict();
+    simple_conflict_tx();
     recovery0();
     recovery();
     return 0;
