@@ -21,7 +21,7 @@ struct connection {
     volatile enum connection_status status;
     size_t xreplica_id;
     int handle;
-    pthread_t *tid;
+    pthread_t tid;
     struct node_io *n;
     int fd;
     uint64_t latency;
@@ -33,7 +33,6 @@ struct connection {
     int ap;
     chan chan_read;
     chan *chan_write;
-    pthread_rwlock_t lock;
 };
 
 struct client {
@@ -55,17 +54,21 @@ LLRB_PROTOTYPE(client_tree, registered_span, entry, spcmp)
 
 struct node_io {
     size_t node_id;
+    pthread_attr_t tattr;
     int running;
     int ap;
+    //we can run multiple replicas covering discrete keyspaces
+    //for now 1 replica covering the entire keyspace
     struct replica_sync sync[1];
+    struct span ranges[1];
     struct io_sync io_sync;
     chan chan_step;//IN steps for replica
     chan chan_propose;//IN proposals for replica
     chan chan_ctl;//IN ctl commands
     struct connection chan_nodes[N];
-    struct span ranges[1];
     size_t quorum[N];
     struct client_tree clients;
+    pthread_rwlock_t nconn_lock[N];
 };
 
 int start(struct node_io*);

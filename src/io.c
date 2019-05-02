@@ -69,7 +69,7 @@ void fd_close(int fd){
 
 void init_fbs(struct connection *c){
     c->fbs.deadline = 40;
-    c->fbs.hdrlen = 4;
+    c->fbs.hdrlen = 16;
     c->fbs.decode = message_from_buffer;
     c->fbs.encode = message_to_buffer;
     c->ap = bundle();
@@ -89,8 +89,7 @@ int run_fbs(struct connection *c){
         hclose(c->handle);
         return -1;
     }
-    size_t xreplica_id = fbs_sock_remote_id(c->handle);
-    c->xreplica_id = xreplica_id;
+    c->xreplica_id = fbs_sock_remote_id(c->handle);
     run_conn(c);
     return 0;
 }
@@ -106,46 +105,55 @@ int new_connection(struct connection *c){
     return run_fbs(c);
 }
 
-void update_nodes(struct connection *c){
-    //TODO locking
+int update_nodes(struct connection *c){
+    int ret = pthread_rwlock_wrlock(&c->n->nconn_lock[c->xreplica_id]);
+    if(ret != 0) return ret;
     struct connection oc = c->n->chan_nodes[c->xreplica_id];
     if(oc.status != DEAD){
-        pthread_cancel(*oc.tid);
+        ret = pthread_cancel(oc.tid);
+        if(ret) return ret;
     }
     memcpy(&c->n->chan_nodes[c->xreplica_id], c, sizeof(struct connection));
+    ret = pthread_rwlock_unlock(&c->n->nconn_lock[c->xreplica_id]);
+    if(ret != 0) return ret;
+    return 0;
 }
 
 void *try_connect(void *conn){
-    struct connection *c = conn;
+    struct connection c = *(struct connection*)conn;
     int tries = 0;
     int reconnect = 3;
     int rc = 0;
     do {
-        rc = new_connection(c);
+        rc = new_connection(&c);
         tries++;
         if(rc < 0){
-            sleep(c->back_off*tries);
+            sleep(c.back_off*tries);
             continue;
         } else {
             tries = 0;
-            //TODO sync
-            update_nodes(c);
-            bundle_wait(c->ap, -1);
+            rc = update_nodes(&c);
+            if(rc != 0){
+                //could not update node connection list
+                //but we do have a valid connection to
+                //another node..
+                //what to do, what to do...
+            }
+            bundle_wait(c.ap, -1);
         }
     } while(tries < reconnect);
-    c->status = DEAD;
-    pthread_exit(&c->xreplica_id);
+    c.status = DEAD;
+    pthread_exit(&c.xreplica_id);
     return 0;
 }
 
 int create_connection(struct node_io *n, int fd){
-    pthread_t id;
     struct connection nns;
     nns.chan_write = &n->chan_step;
-    nns.tid = &id;
     nns.n = n;
     nns.status = CONNECTING;
-    return pthread_create(&id, NULL, try_connect, &nns);
+    nns.fd = fd;
+    return pthread_create(&nns.tid, &n->tattr, try_connect, &nns);
 }
 
 coroutine void node_listener(struct node_io *n){
@@ -188,6 +196,21 @@ void *client_access(void *nn){
     return 0;
 }
 
+int set_pthread_attr(struct node_io *n){
+    int ret = pthread_attr_init(&n->tattr);
+    if(ret) return ret;
+    return pthread_attr_setdetachstate(&n->tattr, PTHREAD_CREATE_DETACHED);
+}
+
+int create_conn_locks(struct node_io *n){
+    int ret = 0;
+    for(int i = 0;i < N;i++){
+        ret = pthread_rwlock_init(&n->nconn_lock[i], 0);
+        if(ret != 0) { errno = ret; return ret;}
+    }
+    return 0;
+}
+
 int start(struct node_io *n){
     n->running = 1;
     n->ap = bundle();
@@ -220,8 +243,7 @@ int write_message(struct connection *c, struct message *m){
 }
 
 ssize_t read_message(struct connection *c, struct message *m){
-    ssize_t s;
-    s = mrecv(c->handle, m, sizeof(struct message), -1);
+    ssize_t s = mrecv(c->handle, m, sizeof(struct message), -1);
     if(s <= 0){
         return -1;
     }
@@ -265,10 +287,16 @@ coroutine void reader(struct connection *c){
 }
 
 int connection_write(struct node_io *n, struct message *m){
+    int ret = pthread_rwlock_rdlock(&n->nconn_lock[m->to]);
+    if(ret != 0) return ret;
     if(!chan_send_spsc(&n->chan_nodes[m->to].chan_read, m)){
         //TODO raise error
+        ret = pthread_rwlock_unlock(&n->nconn_lock[m->to]);
+        if(ret != 0) return ret;
         return -1;
     }
+    ret = pthread_rwlock_unlock(&n->nconn_lock[m->to]);
+    if(ret != 0) return ret;
     return 0;
 }
 
@@ -313,11 +341,10 @@ int read_io(struct node_io *n, struct message *m){
     return 0;
 }
 
-//to other nodes
 coroutine void io_reader(struct node_io *n){
     struct message *m = 0;
     while(n->running){
-        if(read_io(n, m) <= 0){
+        if(read_io(n, m) < 0){
             msleep(now() + 20);
             continue;
         }
