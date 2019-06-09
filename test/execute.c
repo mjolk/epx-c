@@ -107,7 +107,6 @@ int64_t components4[1][5] = {
     {1, 2, 3, 4, 5}
 };
 
-struct test_scc cases[5];
 
 KHASH_MAP_INIT_INT64(nodes, struct instance*)
 
@@ -140,6 +139,8 @@ void sort_test_scc(scc *s){
 }
 
 void test_scc(){
+    struct test_scc cases[5];
+    memset(cases, 0, sizeof(struct test_scc)*5);
     cases[0].edges = edges0;
     cases[0].nr_edges = 5;
     memcpy(cases[0].components, components0, sizeof(int64_t)*15);
@@ -206,10 +207,10 @@ void test_scc(){
         for(int m = 0;m < comp_cnt;m++){
             scc comp = e->sccs[m];
             sort_test_scc(&comp);
-            for(int n = 0;n < 5;n++){
-                if(cases[i].components[m][n] < 0) continue;
-                assert((uint64_t)cases[i].components[m][n] ==
-                        comp.nodes[n]->i->key.instance_id);
+            for(int no = 0;no < 5;no++){
+                if(cases[i].components[m][no] < 0) continue;
+                assert((uint64_t)cases[i].components[m][no] ==
+                        comp.nodes[no]->i->key.instance_id);
             }
         }
         reset_exec(e);
@@ -574,7 +575,7 @@ void sort_executed(struct instance *inst[MAX_DEPS]){
 
 uint64_t execution5[4] = {0};
 
-void test_exec(){
+void test_execution(){
     struct test_exec cases[6];
     memset(cases, 0, sizeof(struct test_exec)*6);
     memcpy(cases[0].scc, scc0, 1*sizeof(struct instance));
@@ -624,6 +625,11 @@ void test_exec(){
             excd++;
         }
         for(cc = 0;cc < 4;cc++){
+            uint64_t comps = cases[c].components[cc];
+            uint64_t scc = executed[cc];
+            if(comps != scc){
+                uint64_t sccc = scc;
+            }
             assert(cases[c].components[cc] == executed[cc]);
         }
         reset_exec(exec);
@@ -639,6 +645,6 @@ void test_exec(){
 
 int main(){
     test_scc();
-    test_exec();
+    test_execution();
     return 0;
 }

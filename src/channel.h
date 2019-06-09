@@ -7,13 +7,24 @@
 
 #include <semaphore.h>
 #include <ck_ring.h>
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#else
+#include <semaphore.h>
+#endif
+
 #define CAPACITY 2048
 
 typedef struct chan {
     ck_ring_t ring;
     ck_ring_buffer_t b[CAPACITY];
+    #ifdef __APPLE__
+    dispatch_semaphore_t c_sem;
+    dispatch_semaphore_t s_sem;
+    #else
     sem_t c_sem;
-    sem_t s_sem;
+    sema_t s_sem;
+    #endif
 } chan;
 
 int chan_init(chan*);

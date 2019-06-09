@@ -4,9 +4,9 @@ target_link_libraries(fbs_test epx)
 add_test(NAME message_flatbuffer COMMAND fbs_test)
 
 #channel sync test
-add_executable(chan_test channel.c)
-target_link_libraries(chan_test epx)
-add_test(NAME channel COMMAND chan_test)
+add_executable(channel_test channel.c)
+target_link_libraries(channel_test epx)
+add_test(NAME channel COMMAND channel_test)
 
 #flatbuffer socket test
 add_custom_target(

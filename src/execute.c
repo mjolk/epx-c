@@ -35,6 +35,7 @@ struct tarjan_node *new_tn(struct instance *i){
     node->index = -1;
     node->low_link = -1;
     node->on_stack = 0;
+    node->next.sle_next = 0;
     memset(node->deps, 0, sizeof(struct tarjan_node*)*MAX_DEPS);
     return node;
 }
@@ -79,13 +80,10 @@ void reset_exec(struct executor *e){
 }
 
 struct executor *new_executor(){
-    struct executor *e = malloc(sizeof(struct executor));
+    struct executor *e = calloc(1, sizeof(struct executor));
     if(!e){ errno = ENOMEM; return 0;}
     e->vertices = kh_init(vertices);
-    e->scc_count = 0;
     SLL_INIT(&e->stack);
-    memset(e->sccs, 0, sizeof(scc)*MAX_DEPS);
-    e->index = 0;
     return e;
 }
 
@@ -152,17 +150,17 @@ void strong_connect(struct executor *e){
 }
 
 int add_node(struct executor *e, struct instance *i){
-    int new = 0;
+    int added = 0;
     khint_t k;
     struct tarjan_node *nn = new_tn(i);
     if(nn){
-        k = kh_put(vertices, e->vertices, dh_key(&i->key), &new);
-        if(!new && kh_exist(e->vertices, k)){
+        k = kh_put(vertices, e->vertices, dh_key(&i->key), &added);
+        if(!added && kh_exist(e->vertices, k)){
             free(kh_value(e->vertices, k));
         }
         kh_value(e->vertices, k) = nn;
     }
-    return new;
+    return added;
 }
 
 //insert sort good enough for now

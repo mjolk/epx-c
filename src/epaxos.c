@@ -216,7 +216,7 @@ void pre_accept_reply(struct replica *r, struct instance *i, struct message *m){
 }
 
 //TODO add checkpointing
-void accept(struct replica *r, struct instance *i, struct message *m){
+static void accept(struct replica *r, struct instance *i, struct message *m){
     if(is_state(i->status, (COMMITTED | EXECUTED))) return;
     if(m->ballot < i->ballot){
         m->nack = 1;
