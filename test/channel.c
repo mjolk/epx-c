@@ -60,10 +60,12 @@ void *receivemsg(void *ch){
     int running = 1;
     int cnt = 0;
     while(running){
-        struct entry *msg;
+        struct entry *msg = 0;
         if(!sem_chan_recv_mpsc(ch, &msg)){
             printf("channel empty\n");
-            msg = 0;
+            cnt++;
+            if(cnt == 3000) running = 0;
+            //msg = 0;
         }
         if(msg){
             //printf("count %d \n", cnt);
