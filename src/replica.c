@@ -20,7 +20,7 @@ coroutine void recv_step(struct replica *r){
     struct message *m;
     while(r->running){
         if(!chan_recv_spsc(&r->in->chan_step, &m)){
-            msleep(now() + 20);
+            yield();
             continue;
         }
         chsend(r->chan_ii[0], &m, MSG_SIZE, -1);
@@ -31,7 +31,7 @@ coroutine void recv_propose(struct replica *r){
     struct message *m;
     while(r->running){
         if(!chan_recv_spsc(&r->in->chan_propose, &m)){
-            msleep(now() + 20);
+            yield();
             continue;
         }
         chsend(r->chan_propose[0], &m, MSG_SIZE, -1);
@@ -39,15 +39,15 @@ coroutine void recv_propose(struct replica *r){
 }
 
 int send_io(struct replica *r, struct message *m){
-    return chan_send_mpsc(&r->out->chan_io, m);
+    return chan_send_spsc(&r->out->chan_io, m);
 }
 
 int send_eo(struct replica *r, struct message *m){
-    return chan_send_mpsc(&r->out->chan_eo, m);
+    return chan_send_spsc(&r->out->chan_eo, m);
 }
 
 int send_exec(struct replica *r, struct message *m){
-    return chan_send_spsc(&r->in->chan_exec, m);
+    return chan_send_spsc(&r->out->chan_exec, m);
 }
 
 int new_replica(struct replica *r){

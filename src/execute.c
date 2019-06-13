@@ -59,7 +59,6 @@ SLL_HEAD(stack, tarjan_node);
 KHASH_MAP_INIT_INT64(vertices, struct tarjan_node*);
 
 struct executor {
-    struct replica_sync *rsync;
     struct io_sync *sync;
     struct replica *r;
     khash_t(vertices) *vertices;
@@ -205,7 +204,7 @@ void execute_scc(struct executor *e, scc *comp){
         k = kh_get(vertices, e->vertices, dh_key(&executed->key));
         if(k != kh_end(e->vertices)) kh_del(vertices, e->vertices, k);
         free(comp->nodes[i]);
-        executed->status = EXECUTED; //-->from now on the instance can be garbage collected!!!
+        executed->status = EXECUTED; //-->from now on the instance can be garbage collected
     }
 }
 
@@ -214,6 +213,7 @@ void execute(struct executor *e){
     for(int i = 0;i < e->scc_count;i++){
         execute_scc(e, &e->sccs[i]);
     }
+    //TODO dispatch executed
     reset_exec(e);
 }
 
@@ -222,10 +222,9 @@ int run_execute(struct executor *e){
 }
 
 void read_committed(struct executor *e, int rep){
-    struct instance *i;
+    struct instance *i = 0;
     while(e->running){
-        if(!chan_recv_spsc(&e->rsync->chan_exec, &i)){
-            msleep(now() + 100);
+        if(!chan_recv_spsc(&e->sync->chan_exec, &i)){
             continue;
         }
         if(i){
