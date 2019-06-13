@@ -11,7 +11,6 @@
 #include "sync.h"
 #include "hash.h"
 
-#define MSG_SIZE sizeof(struct message*)
 KHASH_MAP_INIT_INT64(deferred, size_t)
 
 struct replica {

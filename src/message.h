@@ -53,5 +53,7 @@ struct message {
     uint64_t stop;
 };
 
+#define MSG_SIZE sizeof(struct message*)
+
 int message_from_buffer(void*, void*);
 void message_to_buffer(void*, flatcc_builder_t*);
