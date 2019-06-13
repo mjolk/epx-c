@@ -45,22 +45,22 @@ void merge(struct span_tree *rt, struct span *to_merge, struct span_group *sll){
 }
 
 int read_dependency(struct span_tree *rt, struct command *cmd){
-    int overlaps = 0;
+    int no_overlap = 1;
     for(size_t i = 0;i < cmd->tx_size;i++){
         if(LLRB_RANGE_OVERLAPS(span_tree, rt, &cmd->spans[i])){
-            overlaps = 1;
+            no_overlap = 0;
             break;
         }
     }
-    return !overlaps;
+    return no_overlap;
 }
 
 uint64_t seq_deps_for_command(
-        struct instance_index *index,
-        struct command *cmd,
-        struct instance_id *ignore,
-        struct seq_deps_probe *probe
-        ){
+    struct instance_index *index,
+    struct command *cmd,
+    struct instance_id *ignore,
+    struct seq_deps_probe *probe
+){
     uint64_t mseq = 0;
     struct span_group ml;
     struct span_tree rt;
@@ -90,11 +90,6 @@ uint64_t seq_deps_for_command(
                     if(empty_range(&cspan[i])) break;
                     if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
                                 &cspan[i], &ml, merge)){
-                        //on stack -> this needs to be in the root function
-                        //to use its stack
-                        //eg can't refactor this to another function the
-                        //spans would be lost when said function returns
-                        //TESTING whether we need heap memory
                         struct span nsp = cspan[i];
                         LLRB_INSERT(span_tree, &rt, &nsp);
                         add = 1;
@@ -165,9 +160,13 @@ int is_dep_conflict(struct instance *ti, uint64_t seq, struct dependency *deps,
     return 0;
 }
 
-struct instance* pre_accept_conflict(struct instance_index *index,
-        struct instance *i, struct command *c,
-        uint64_t seq, struct dependency *deps){
+struct instance* pre_accept_conflict(
+    struct instance_index *index,
+    struct instance *i,
+    struct command *c,
+    uint64_t seq,
+    struct dependency *deps
+){
     struct span_group ml;
     struct span_tree rt;
     struct instance *ti;
@@ -202,11 +201,6 @@ struct instance* pre_accept_conflict(struct instance_index *index,
                     if(empty_range(&cspan[j])) break;
                     if(LLRB_RANGE_GROUP_ADD(span_tree, &rt,
                                 &cspan[j], &ml, merge)){
-                        //on stack -> this needs to be in the root function
-                        //to match it's memory lifecycle
-                        //eg can't refactor this to another function the
-                        //spans would be lost when said function returns
-                        //TESTING whether we need heap memory
                         struct span nsp = cspan[j];
                         LLRB_INSERT(span_tree, &rt, &nsp);
                         add = 1;
