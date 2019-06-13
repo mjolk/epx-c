@@ -39,7 +39,7 @@ epx_command_ref_t command_to_buffer(struct command *c, flatcc_builder_t *b) {
     ns(command_id_add(b, c->id));
     ns(command_spans_start(b));
     for(int i = 0;i < 100;i++){
-        if(c->spans[i].start_key[0] == '\0') continue;
+        if(empty_range(&c->spans[i])) continue;
         ns(command_spans_push_create(b,
                     flatbuffers_string_create_str(b, c->spans[i].start_key),
                     flatbuffers_string_create_str(b, c->spans[i].end_key)
