@@ -15,7 +15,7 @@ void *receivemsg(void*);
 
 int main(){
 
-    chan *channel = calloc(1, sizeof(struct chan));
+    chan *channel = malloc(sizeof(struct chan));
     chan_init(channel);
     pthread_t sending[3];
     pthread_t receiving[1];
@@ -44,7 +44,7 @@ struct entry {
 void *sendmsg(void *ch){
     for(int i = 0;i < 1000;i++){
         //char *msg = malloc(sizeof(char)*5);
-        struct entry *msg = calloc(1, sizeof(struct entry));
+        struct entry *msg = malloc(sizeof(struct entry));
         sprintf(msg->msg, "%d", i);
         msg->id = i;
         //if(sprintf(msg, "%d", i) < 0) return 0;
