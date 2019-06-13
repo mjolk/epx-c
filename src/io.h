@@ -10,11 +10,21 @@
 #include "sync.h"
 #include "message.h"
 #include "llrb-interval/llrb.h"
+#define MAX_CLIENTS 10
 
 enum protocol {
     TCP,
     TLS,
     UDP
+};
+
+struct nxt_sp {
+    struct registered_span *sle_next;
+};
+
+struct client {
+    int chan[2];
+    int64_t expires;
 };
 
 struct connection {
@@ -23,6 +33,7 @@ struct connection {
     int handle;
     pthread_t tid;
     struct node_io *n;
+    struct client client;
     int fd;
     uint64_t latency;
     struct ipaddr addr;
@@ -35,39 +46,28 @@ struct connection {
     chan *chan_write;
 };
 
-struct client {
-    int handle;
-    int64_t expires;
-};
-
 struct registered_span {
     char start_key[KEY_SIZE];
     char end_key[KEY_SIZE];
     char max[KEY_SIZE];
-    struct nxt next;
-    struct client clients[10];
+    struct nxt_sp next;
+    struct client clients[MAX_CLIENTS];
     LLRB_ENTRY(registered_span) entry;
 };
 
-LLRB_HEAD(client_tree, registered_span);
-LLRB_PROTOTYPE(client_tree, registered_span, entry, spcmp)
+LLRB_HEAD(client_index, registered_span);
+LLRB_PROTOTYPE(client_index, registered_span, entry, spcmp)
 
 struct node_io {
     size_t node_id;
     pthread_attr_t tattr;
     int running;
     int ap;
-    //we can run multiple replicas covering discrete keyspaces
-    //for now 1 replica covering the entire keyspace
-    struct replica_sync sync[1];
-    struct span ranges[1];
+    struct replica_sync sync;
     struct io_sync io_sync;
-    chan chan_step;//IN steps for replica
-    chan chan_propose;//IN proposals for replica
-    chan chan_ctl;//IN ctl commands
     struct connection chan_nodes[N];
     size_t quorum[N];
-    struct client_tree clients;
+    struct client_index clients;
     pthread_rwlock_t nconn_lock[N];
 };
 
