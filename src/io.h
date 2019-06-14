@@ -10,7 +10,6 @@
 #include "sync.h"
 #include "message.h"
 #include "llrb-interval/llrb.h"
-#define MAX_CLIENTS 10
 
 enum protocol {
     TCP,
@@ -31,6 +30,7 @@ struct connection {
     volatile enum connection_status status;
     size_t xreplica_id;
     int handle;
+    int prot_handle;
     pthread_t tid;
     struct node_io *n;
     struct client client;
@@ -60,6 +60,8 @@ LLRB_PROTOTYPE(client_index, registered_span, entry, spcmp)
 
 struct node_io {
     size_t node_id;
+    int node_listener;
+    int client_listener;
     pthread_attr_t tattr;
     int running;
     int ap;

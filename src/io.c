@@ -94,7 +94,7 @@ int listener(int port) {
     return tcp_listen(&addr, 10);
 }
 
-void fd_close(int fd){
+void fd_closer(int fd){
     struct linger lng;
     lng.l_onoff=1;
     lng.l_linger=0;
@@ -105,11 +105,30 @@ void fd_close(int fd){
     close(fd);
 }
 
+void destroy_client_connection(struct connection *c){
+    hclose(c->prot_handle);
+    hclose(c->handle);
+    hclose(c->client.chan[0]);
+    hclose(c->client.chan[1]);
+    c->status = DEAD;
+    hclose(c->ap);
+    if(c->fd > 0) fd_closer(c->fd);
+    free(c);
+}
+
+void destroy_node_connection(struct connection *c){
+    hclose(c->prot_handle);
+    hclose(c->handle);
+    hclose(c->ap);
+    if(c->fd > 0) fd_closer(c->fd);
+}
+
 void init_fbs(struct connection *c){
-    c->fbs.deadline = 40;
+    c->fbs.deadline = -1;
     c->fbs.hdrlen = 16;
     c->fbs.decode = message_from_buffer;
     c->fbs.encode = message_to_buffer;
+    if(c->n) c->fbs.replica_id = c->n->node_id;
     c->ap = bundle();
     c->latency = 0;
     c->back_off = 1;
@@ -119,9 +138,9 @@ void init_fbs(struct connection *c){
 }
 
 int run_node_fbs(struct connection *c){
-    c->handle = fbs_sock_attach(c->handle, &c->fbs);
+    c->handle = fbs_sock_attach(c->prot_handle, &c->fbs);
     if(c->handle < 0 && c->fd > 0) {
-        fd_close(c->fd);
+        fd_closer(c->fd);
         return -1;
     } else if(c->handle < 0){
         hclose(c->handle);
@@ -133,8 +152,9 @@ int run_node_fbs(struct connection *c){
 }
 
 int run_client_fbs(struct connection *c){
-    c->handle = fbs_sock_attach(c->handle, &c->fbs);
+    c->handle = fbs_sock_attach(c->prot_handle, &c->fbs);
     if(c->handle < 0){
+        hclose(c->prot_handle);
         hclose(c->handle);
         return -1;
     }
@@ -146,9 +166,12 @@ int new_node_connection(struct connection *c){
     if(slow(c)) return -1;
     init_fbs(c);
     if(c->fd > 0){
-        c->handle = tcp_fromfd(c->fd);
+        c->prot_handle = tcp_fromfd(c->fd);
     } else {
-        c->handle = tcp_connect(&c->addr, now() + 160);
+        c->prot_handle = tcp_connect(&c->addr, now() + 160);
+    }
+    if(c->prot_handle <= 0){
+        return -1;
     }
     return run_node_fbs(c);
 }
@@ -161,7 +184,8 @@ int update_nodes(struct connection *c){
         ret = pthread_cancel(oc.tid);
         if(ret) return ret;
     }
-    memcpy(&c->n->chan_nodes[c->xreplica_id], c, sizeof(struct connection));
+    //memcpy(&c->n->chan_nodes[c->xreplica_id], c, sizeof(struct connection));
+    c->n->chan_nodes[c->xreplica_id] = *c;
     ret = pthread_rwlock_unlock(&c->n->nconn_lock[c->xreplica_id]);
     if(ret != 0) return ret;
     return 0;
@@ -179,7 +203,7 @@ void* try_connect(void *conn){
             sleep(c.back_off*tries);
             continue;
         } else {
-            tries = 0;
+            c.chan_write = &c.n->sync.chan_step;
             rc = update_nodes(&c);
             if(rc != 0){
                 //could not update node connection list
@@ -188,6 +212,7 @@ void* try_connect(void *conn){
                 //what to do, what to do...
             }
             bundle_wait(c.ap, -1);
+            reconnect = 0;
         }
     } while(tries < reconnect);
     c.status = DEAD;
@@ -197,7 +222,6 @@ void* try_connect(void *conn){
 
 int node_connect(struct node_io *n, int fd){
     struct connection nns = {
-        .chan_write = &n->sync.chan_step,
         .n = n,
         .status = CONNECTING,
         .fd = fd
@@ -206,13 +230,16 @@ int node_connect(struct node_io *n, int fd){
 }
 
 coroutine void node_listener(struct node_io *n){
-    int ls = listener(NODE_PORT);
-    if(ls <= 0) return;
+    n->node_listener = listener(NODE_PORT);
+    if(n->node_listener <= 0) return;
     while(n->running){
-        int fd = tcp_accept_raw(ls, 0, -1);
-        if(node_connect(n, fd) != 0){
-            msleep(now() + 200);//TODO reason this, arbitrary solution now
+        int fd = tcp_accept_raw(n->node_listener, NULL, -1);
+        if(fd > 0){ 
+            if(node_connect(n, fd) != 0){
+                msleep(now() + 400);//TODO reason this, arbitrary solution now
+            }
         }
+        yield();//TODO reason this, arbitrary solution now
     }
 }
 
@@ -226,17 +253,14 @@ coroutine void run_client(struct connection *c){
             }
         }
     }
-    hclose(c->client.chan[0]);
-    hclose(c->client.chan[1]);
-    hclose(c->ap);
-    free(c);
+    destroy_client_connection(c);
 }
 
 coroutine void client_listener(struct node_io *n){
-    int ls = listener(CLIENT_PORT);
-    if(ls <= 0) return;
+    n->client_listener = listener(CLIENT_PORT);
+    if(n->client_listener <= 0) return;
     while(n->running){
-        int c_handle = tcp_accept(ls, 0, -1);
+        int c_handle = tcp_accept(n->client_listener, NULL, -1);
         if(c_handle <= 0){
             yield();
             continue;
@@ -245,7 +269,7 @@ coroutine void client_listener(struct node_io *n){
         if(!nns) exit(1);//TODO crash and burn
         nns->chan_write = &n->sync.chan_propose;
         nns->n = n;
-        nns->handle = c_handle;
+        nns->prot_handle = c_handle;
         nns->client.expires = now() + (int64_t)3.6e+6;
         if(chmake(nns->client.chan) < 0){
             //can't create client pipeline
@@ -272,7 +296,6 @@ int create_conn_locks(struct node_io *n){
     return 0;
 }
 
-
 int write_message(struct connection *c, struct message *m){
     return msend(c->handle, m, sizeof(struct message), -1);
 }
@@ -280,13 +303,10 @@ int write_message(struct connection *c, struct message *m){
 ssize_t read_message(struct connection *c, struct message *m){
     ssize_t s = mrecv(c->handle, m, sizeof(struct message), -1);
     if(s <= 0){
+        free(m->command);
+        free(m);
         return -1;
     }
-    //only alloc when we positively have a message
-    struct message *nm = malloc(sizeof(struct message));
-    if(nm == 0){ errno = ENOMEM; return -1;}
-    *nm = *m;
-    m = nm;
     return s;
 }
 
@@ -311,17 +331,18 @@ void register_client(struct registered_span rsps[], struct node_io *n){
 
 coroutine void writer(struct connection *c){
     int rc = 0;
-    struct message m;//temp storage for message to be received
-    struct message *rcv;
     while(c->status == ALIVE){
-        memset(&m, 0, sizeof(struct message));
-        rcv = &m;
+        struct message *rcv = calloc(1, sizeof(struct message));
+        if(!rcv) { errno = ENOMEM; return;}
+        struct command *cmd = calloc(1, sizeof(struct command));
+        if(!cmd) { errno = ENOMEM; return;}
+        rcv->command = cmd;
         ssize_t s = read_message(c, rcv);
         if(s <= 0){
             yield();
             continue;
         }
-        //is client connection?
+        rcv->from = c->xreplica_id;
         if(c->client.expires != 0){
             struct registered_span rsps[TX_SIZE];
             for(size_t i = 0;i < rcv->command->tx_size;i++){
@@ -333,7 +354,7 @@ coroutine void writer(struct connection *c){
             register_client(rsps, c->n);
         }
         if(!chan_send_mpsc(c->chan_write, rcv)) {
-            msleep(now() + 20);//TODO log lost messages. or keep trying to send
+            msleep(now() + 200);//TODO log lost messages. or keep trying to send
             continue;
         }
     }
@@ -345,6 +366,7 @@ coroutine void reader(struct connection *c){
     while(c->status == ALIVE){
         if(!chan_recv_spsc(&c->chan_read, &m)){
             yield();
+            //TODO error?
             continue;
         }
         rc = write_message(c, m);
@@ -362,9 +384,7 @@ int connection_write(struct node_io *n, struct message *m){
         if(ret != 0) return ret;
         return -1;
     }
-    ret = pthread_rwlock_unlock(&n->nconn_lock[m->to]);
-    if(ret != 0) return ret;
-    return 0;
+    return pthread_rwlock_unlock(&n->nconn_lock[m->to]);
 }
 
 void broadcast_prepare(struct node_io *n, struct message *m){
@@ -443,6 +463,7 @@ coroutine void eo_reader(struct node_io *n){
         struct client_group cg;
         SLL_INIT(&cg);
         for(size_t i = 0;i < m->command->tx_size;i++){
+            if(empty_range(&m->command->spans[i])) break;
             struct registered_span rsp;
             strcpy(rsp.start_key, m->command->spans[i].start_key);
             strcpy(rsp.end_key, m->command->spans[i].end_key);
@@ -476,10 +497,10 @@ int start(struct node_io *n){
     if(n->ap < 0) goto error;
     if(create_conn_locks(n) != 0) goto error;
     if(set_pthread_attr(n) != 0) goto error;
-    if(bundle_go(n->ap, node_listener(n)) != 0) goto error;
-    if(bundle_go(n->ap, client_listener(n)) != 0) goto error;
     if(bundle_go(n->ap, io_reader(n)) != 0) goto error;
     if(bundle_go(n->ap, eo_reader(n)) != 0) goto error;
+    if(bundle_go(n->ap, node_listener(n)) != 0) goto error;
+    if(bundle_go(n->ap, client_listener(n)) != 0) goto error;
     LLRB_INIT(&n->clients);
     return 0;
 error:
@@ -490,5 +511,15 @@ error:
 }
 
 void stop(struct node_io *n){
+    n->running = 0;
     hclose(n->ap);
+    hclose(n->client_listener);
+    hclose(n->node_listener);
+    LLRB_DESTROY(client_index, &n->clients, destroy_rsp);
+    for(int i = 0; i < N;i++){
+        if(n->chan_nodes[i].status == ALIVE ||
+            n->chan_nodes[i].status == CONNECTING){
+            destroy_node_connection(&n->chan_nodes[i]);
+        }
+    }
 }
