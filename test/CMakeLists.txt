@@ -41,3 +41,7 @@ add_test(NAME epaxos COMMAND epaxos_test)
 add_executable(execute_test execute.c)
 target_link_libraries(execute_test epx)
 add_test(NAME execute COMMAND execute_test)
+
+add_executable(io_test io.c)
+target_link_libraries(io_test epx)
+add_test(NAME io COMMAND io_test)
