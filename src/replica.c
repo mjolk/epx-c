@@ -19,7 +19,7 @@ coroutine void tcl(struct replica *r){
 coroutine void recv_step(struct replica *r){
     struct message *m;
     while(r->running){
-        if(!chan_recv_spsc(&r->in->chan_step, &m)){
+        if(!chan_recv_mpsc(&r->in->chan_step, &m)){
             yield();
             continue;
         }
@@ -30,7 +30,7 @@ coroutine void recv_step(struct replica *r){
 coroutine void recv_propose(struct replica *r){
     struct message *m;
     while(r->running){
-        if(!chan_recv_spsc(&r->in->chan_propose, &m)){
+        if(!chan_recv_mpsc(&r->in->chan_propose, &m)){
             yield();
             continue;
         }
@@ -89,6 +89,7 @@ on_error:
 
 void destroy_replica(struct replica *r){
     r->running = 0;
+    hclose(r->ap);
     hclose(r->chan_tick[0]);
     hclose(r->chan_tick[1]);
     hclose(r->chan_propose[0]);
@@ -99,7 +100,6 @@ void destroy_replica(struct replica *r){
     for(int i = 0;i < N;i++){
         LLRB_DESTROY(instance_index, &r->index[i], destroy_instance);
     }
-    hclose(r->ap);
 }
 
 int trigger(struct timer *t){
