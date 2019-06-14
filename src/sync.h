@@ -9,9 +9,9 @@
 #include "channel.h"
 
 enum connection_status {
-    ALIVE,
+    DEAD,
     CONNECTING,
-    DEAD
+    ALIVE
 };
 
 //TO replica 
