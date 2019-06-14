@@ -20,7 +20,7 @@ enum state {
 
 
 enum message_type {
-    PHASE1,
+    PHASE1 = 1,
     PRE_ACCEPT,
     PRE_ACCEPT_OK,
     PRE_ACCEPT_REPLY,
