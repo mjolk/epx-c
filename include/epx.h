@@ -4,7 +4,7 @@
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : Wed 05 Sep 2018 04:29
  */
-// the compile time configured options and settings for epx
+//compile time configured options and settings for epx
 #ifndef epx_h
 #define epx_h
 #define epx_VERSION_MAJOR 1
@@ -18,4 +18,5 @@
 #define NODE_PORT 5551
 #define MAX_LATENCY 60
 #define PREFIX_SIZE 4
+#define MAX_CLIENTS 10 //max clients per subscribed range.
 #endif
