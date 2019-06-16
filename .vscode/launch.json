@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Cmake test debug",
+            "name": "cmake lldb",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/test/${fileBasenameNoExtension}_test",
@@ -15,6 +15,18 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
+        },
+        {
+            "name": "cmake gdb",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test/${fileBasenameNoExtension}_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb"
         }
     ]
 }
