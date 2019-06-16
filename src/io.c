@@ -389,12 +389,12 @@ coroutine void reader(struct connection *c){
         if(!chan_recv_spsc(&c->chan_read, &m)){
             //yield();
             msleep(now() + 60);
-            //TODO error?
             continue;
         }
         if(write_message(c, m)){
             return;
         }
+        free(m);
     }
 }
 
@@ -403,7 +403,7 @@ int connection_write(struct node_io *n, struct message *m){
     int ret = 0;
     if(n->chan_nodes[m->to].error){
         node_connect(n, &n->nodes[m->to], 0);
-        ret = -1;
+        return 0;//hmmm
     }
     if(!chan_send_spsc(&n->chan_nodes[m->to].chan_read, m)){
         ret = -1;
@@ -412,41 +412,62 @@ int connection_write(struct node_io *n, struct message *m){
     return ret;
 }
 
-void broadcast_prepare(struct node_io *n, struct message *m){
+int broadcast_prepare(struct node_io *n, struct message *m){
     size_t q = n->node_id;
     for(int s = 0;s < N -1;s++){
         q = (q+1) % N;
         if(q == n->node_id) break;
         m->to = q;
-        connection_write(n, m);
+        struct message *cm = copy_message(m);
+        if(!cm){ errno = ENOMEM; return -1;}
+        if(connection_write(n, cm)){
+            return -1;
+        }
     }
+    return 0;
 }
 
-void broadcast_pre_accept(struct node_io *n, struct message *m){
+int broadcast_pre_accept(struct node_io *n, struct message *m){
     int nN = N -1;
     for(int s = 0; s < N -1; s++){
         m->to = n->quorum[s];
-        connection_write(n, m);
+        struct message *cm = copy_message(m);
+        if(!cm){ errno = ENOMEM; return -1;}
+        if(connection_write(n, cm)){
+            return -1;
+        }
     }
+    return 0;
 }
 
-void broadcast_try_pre_accept(struct node_io *n, struct message *m){
+int broadcast_try_pre_accept(struct node_io *n, struct message *m){
     int nN = N -1;
     for(int s = 0; s < N -1; s++){
         m->to = s;
-        connection_write(n, m);
+        struct message *cm = copy_message(m);
+        if(!cm) { errno = ENOMEM; return -1;}
+        if(connection_write(n, cm)){
+            return -1;
+        }
     }
+    return 0;
 }
 
-void broadcast_commit(struct node_io *n, struct message *m){
+int broadcast_commit(struct node_io *n, struct message *m){
     for(int s = 0; s < N; s++){
         m->to = n->quorum[s];
-        connection_write(n, m);
+        struct message *cm = copy_message(m);
+        if(!cm) { errno = ENOMEM; return -1;}
+        if(connection_write(n, cm)){
+            return -1;
+        }
     }
+    return 0;
 }
 
 coroutine void io_reader(struct node_io *n){
     struct message *m;
+    int ret;
     while(n->running){
         if(!chan_recv_spsc(&n->io_sync.chan_io, &m)){
             //yield();
@@ -457,23 +478,27 @@ coroutine void io_reader(struct node_io *n){
         m->from = n->node_id;
         switch(m->type){
             case PREPARE:
-                broadcast_prepare(n, m);
+                ret = broadcast_prepare(n, m);
                 break;
             case ACCEPT:
             case PRE_ACCEPT:
                 update_quorum(n->quorum, n->chan_nodes);
-                broadcast_pre_accept(n, m);
+                ret = broadcast_pre_accept(n, m);
                 break;
             case TRY_PRE_ACCEPT:
-                broadcast_try_pre_accept(n, m);
+                ret = broadcast_try_pre_accept(n, m);
                 break;
             case COMMIT:
-                broadcast_commit(n, m);
+                ret = broadcast_commit(n, m);
                 break;
             default:
-                connection_write(n, m);
+                ret = connection_write(n, m);
                 break;
 
+        }
+        if(ret){
+            //TODO figure out what to do here.
+            return;
         }
     }
 }

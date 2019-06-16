@@ -6,15 +6,27 @@
  */
 #include "../src/io.c"
 
+struct message* test_message(
+    char *start_key,
+    char *end_key,
+    enum message_type t
+){
+    struct command *cmd = malloc(sizeof(struct command));
+    if(!cmd) return 0;
+    strcpy(cmd->spans[0].start_key, start_key);
+    strcpy(cmd->spans[0].end_key, end_key);
+    memset(cmd->spans[0].max, 0, KEY_SIZE);
+    struct message *m = malloc(sizeof(struct message));
+    if(!m) return 0;
+    m->type = t;
+    m->command = cmd;
+    m->command->tx_size = 1;
+    return m;
+}
+
 coroutine void test_client_client(struct connection *conn){
+    struct message *m = test_message("ab", "cd", PHASE1);
     init_fbs(conn);
-    struct command cmd;
-    strcpy(cmd.spans[0].start_key, "ab");
-    strcpy(cmd.spans[0].end_key, "cd");
-    memset(cmd.spans[0].max, 0, KEY_SIZE);
-    struct message m;
-    m.type = PHASE1;
-    m.command = &cmd;
     struct ipaddr addr;
     assert(ipaddr_local(&addr, "127.0.0.1", CLIENT_PORT, 0) == 0);
     int tcp_handle = tcp_connect(&addr, -1);
@@ -23,7 +35,7 @@ coroutine void test_client_client(struct connection *conn){
     conn->handle = fbs_sock_attach(tcp_handle, &conn->fbs);
     assert(conn->handle > 0);
     int rc = 0;
-    rc = msend(conn->handle, &m, sizeof(struct message), -1);
+    rc = msend(conn->handle, m, sizeof(struct message), -1);
     assert(rc == 0);
 }
 
@@ -52,23 +64,14 @@ coroutine void test_node_client(struct connection *conn){
     init_fbs(conn);
     struct ipaddr addr;
     assert(ipaddr_local(&addr, "127.0.0.1", NODE_PORT, 0) == 0);
-    char buf[IPADDR_MAXSTRLEN];
-    ipaddr_str(&addr, buf);
-    printf("ip to connect: %s\n", buf);
     int tcp_handle = tcp_connect(&addr, -1);
     assert(tcp_handle > 0);
     conn->handle = fbs_sock_attach(tcp_handle, &conn->fbs);
     assert(conn->handle > 0);
     conn->xreplica_id = fbs_sock_remote_id(conn->handle);
     assert(conn->xreplica_id == 1);
-    struct command cmd;
-    strcpy(cmd.spans[0].start_key, "ef");
-    strcpy(cmd.spans[0].end_key, "gh");
-    memset(cmd.spans[0].max, 0, KEY_SIZE);
-    struct message m;
-    m.type = PHASE1;
-    m.command = &cmd;
-    int rc = msend(conn->handle, &m, sizeof(struct message), -1);
+    struct message *m = test_message("ef", "gh", PHASE1);
+    int rc = msend(conn->handle, m, sizeof(struct message), -1);
     assert(rc == 0);
 }
 
@@ -108,15 +111,8 @@ void test_client(){
     bundle_go(b, check_propose(&io));
     bundle_wait(b, -1);
     bundle_go(b, test_client_update(&client));
-    struct command cmd;
-    strcpy(cmd.spans[0].start_key, "ab");
-    strcpy(cmd.spans[0].end_key, "cd");
-    memset(cmd.spans[0].max, 0, KEY_SIZE);
-    cmd.tx_size = 1;
-    struct message m;
-    m.type = COMMIT;
-    m.command = &cmd;
-    assert(chan_send_mpsc(&io.io_sync.chan_eo, &m));
+    struct message *m = test_message("ab", "cd", COMMIT);
+    assert(chan_send_mpsc(&io.io_sync.chan_eo, m));
     bundle_wait(b, -1);
     struct registered_span rsp;
     strcpy(rsp.start_key, "ab");
@@ -141,16 +137,9 @@ void test_node(){
     bundle_wait(b, -1);
     assert(io.chan_nodes[2].status == ALIVE);
     bundle_go(b, test_node_update(&client));
-    struct command cmd;
-    strcpy(cmd.spans[0].start_key, "ab");
-    strcpy(cmd.spans[0].end_key, "cd");
-    memset(cmd.spans[0].max, 0, KEY_SIZE);
-    cmd.tx_size = 1;
-    struct message m;
-    m.type = ACCEPT_REPLY;
-    m.from = 2;
-    m.command = &cmd;
-    assert(chan_send_spsc(&io.io_sync.chan_io, &m));
+    struct message *m = test_message("ab", "cd", ACCEPT_REPLY);
+    m->from = 2;
+    assert(chan_send_spsc(&io.io_sync.chan_io, m));
     bundle_wait(b, -1);
     stop(&io);
 }
