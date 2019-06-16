@@ -34,7 +34,6 @@ enum message_type {
 };
 
 struct message {
-    uint8_t ref_count;
     enum message_type type;
     size_t to;
     uint8_t ballot;
