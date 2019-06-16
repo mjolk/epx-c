@@ -106,3 +106,16 @@ void message_to_buffer(void *im, flatcc_builder_t *b){
     ns(message_end_as_root(b));
 }
 
+//used when distributing messages, this gives endpoints the chance to free
+//without having to resort to reference counters, locks etc
+struct message* copy_message(struct message *m){
+    struct message *copy_msg = malloc(sizeof(struct message));
+    if(!copy_msg) return 0;
+    struct command *copy_cmd = malloc(sizeof(struct command));
+    if(!copy_cmd) return 0;
+    *copy_msg = *m;
+    *copy_cmd = *m->command;
+    copy_msg->command = copy_cmd;
+    free(m);
+    return copy_msg;
+}
