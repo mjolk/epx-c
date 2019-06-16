@@ -57,7 +57,7 @@ add_dependencies(epx fbs_built)
 #target_include_directories(epx INTERFACE "${CMAKE_SOURCE_DIR}/src/llrb-interval")
 #target_include_directories(epx INTERFACE "${CMAKE_SOURCE_DIR}/test/fbs")
 
-target_compile_features(epx PRIVATE c_std_11)
+target_compile_features(epx PUBLIC c_std_11)
 target_link_libraries(epx
     imp_dill
     Threads::Threads

@@ -15,6 +15,8 @@ configure_file(
     )
 
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 #debug flags
 set(CMAKE_C_FLAGS_DEBUG
     "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -Werror -Wno-long-long -Wno-variadic-macros -fexceptions -DUSE_CLANG_COMPLETER")
