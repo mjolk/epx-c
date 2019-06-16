@@ -63,14 +63,17 @@ struct node_io {
     int node_listener;
     int client_listener;
     pthread_attr_t tattr;
-    int running;
+    pthread_t c_tid;
+    volatile int running;
     int ap;
+    int ap_client;
     struct replica_sync sync;
     struct io_sync io_sync;
+    struct ipaddr nodes[N];
     struct connection chan_nodes[N];
     size_t quorum[N];
     struct client_index clients;
-    pthread_rwlock_t nconn_lock[N];
+    pthread_mutex_t nconn_lock[N];
 };
 
 int start(struct node_io*);
