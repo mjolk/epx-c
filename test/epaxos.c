@@ -260,8 +260,8 @@ void recovery0(){
             .committed = 0
         }
     };
-    memcpy(ri2->deps, deps1, sizeof(struct dependency)*1);
-    memcpy(ri3->deps, deps1, sizeof(struct dependency)*1);
+    memcpy(ri2->deps, deps1, sizeof(struct dependency));
+    memcpy(ri3->deps, deps1, sizeof(struct dependency));
     register_instance(&r1, ri2);
     register_instance(&r2, ri3);
 

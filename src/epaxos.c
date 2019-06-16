@@ -596,7 +596,7 @@ void run(struct replica *r){
     if(rc < 0){
         //totally fucked
         perror("error!");
-        exit(-1);
+        exit(1);
     }
     return;
 }

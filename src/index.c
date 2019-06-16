@@ -64,7 +64,6 @@ uint64_t seq_deps_for_command(
     uint64_t mseq = 0;
     struct span_group ml;
     struct span_tree rt;
-    SLL_INIT(&ml);
     LLRB_INIT(&rt);
     struct span cspan[TX_SIZE];
     struct instance *ci, *ti;
@@ -114,8 +113,10 @@ uint64_t seq_deps_for_command(
 }
 
 void barrier_dep(struct instance_index *index, struct dependency *deps) {
-    add_dep(deps, LLRB_PREV(instance_index, index,
-                LLRB_MAX(instance_index, index)));
+    add_dep(
+        deps, 
+        LLRB_PREV(instance_index, index, LLRB_MAX(instance_index, index))
+    );
 }
 
 void noop_dep(struct instance_index *index, struct instance_id *id,
@@ -173,7 +174,6 @@ struct instance* pre_accept_conflict(
     struct span cspan[TX_SIZE];
     size_t j, k;
     int add, covered;
-    SLL_INIT(&ml);
     LLRB_INIT(&rt);
     struct instance *nxt = LLRB_FIND(instance_index, index, i);
     while(nxt){
