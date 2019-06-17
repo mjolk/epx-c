@@ -1,6 +1,6 @@
 ### epx-c WIP
 
-Distributed key/value store using Egalitarian paxos using rocksdb as backing store (planned)
+Distributed key/value store using Egalitarian paxos (planning on rocksdb as storage)
 This store will work with range subscriptions.
 Clients can set watches on key ranges and receive updates via persistent (web)socket connection.
 Egalitarian paxos will be better for embedding in mobile devices since it does not need a master
