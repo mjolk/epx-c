@@ -7,8 +7,8 @@ Egalitarian paxos will be better for embedding in mobile devices since it does n
 and should better cope with fast changing quorum configurations. (That's the idea anyway)
 
 using [libdill](http://libdill.org) for extra concurrency
-and flatbuffers [flatcc](https://github.com/dvidelabs/flatcc) for fast transport
-flatbuffers need no decoding so hopefully offsets a little the extra cycles burned by the
+and flatbuffers [flatcc](https://github.com/dvidelabs/flatcc) for fast transport  
+flatbuffers need no decoding so hopefully offset a little the extra cycles burned by the
 consensus algo.
 
 #### to compile you need:
