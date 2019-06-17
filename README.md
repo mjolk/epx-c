@@ -19,7 +19,7 @@ consensus algo.
 - [flatcc](https://github.com/dvidelabs/flatcc)
 - [concurrencykit](http://concurrencykit.org)
 - [llrb](https://github.com/mjolk/llrb-interval.git) a left leaning red/black tree with augmentation for 
-  intervals, this will be a git submodule but for development a symlink is easier for now -.-. 
+  intervals, this will be a git submodule but for development a symlink is easier for now ¯\_(ツ)_/¯.  
   Check out in the same parent dir as epx.
     eg:  
     parent  
