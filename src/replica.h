@@ -43,7 +43,7 @@ int register_instance(struct replica*, struct instance*);
 int new_replica(struct replica*);
 void tick(struct replica*);
 int send_eo(struct replica*, struct message*);
-int send_exec(struct replica*, struct message*);
+int send_exec(struct replica*, struct instance*);
 int send_io(struct replica*, struct message*);
 void destroy_replica(struct replica*);
 int run_replica(struct replica*);

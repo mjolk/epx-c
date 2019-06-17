@@ -76,7 +76,7 @@ uint64_t seq_deps_for_command(
         if((ignore) && eq_instance_id(&ti->key, ignore)){
             continue;
         }
-        if(is_state(ti->status, EXECUTED)){
+        if(is_state(ti, EXECUTED)){
             break;
         }
         memset(cspan, 0, sizeof(struct span)*TX_SIZE);
@@ -138,8 +138,8 @@ void clear_index(struct instance_index *index){
     while(nxt){
         c = nxt;
         nxt = LLRB_NEXT(instance_index, index, nxt);
-        if(c->status < EXECUTED) return;
-        if(is_state(c->status, EXECUTED)){
+        if(st_state(c, EXECUTED)) return;
+        if(is_state(c, EXECUTED)){
             if(executed){
                 destroy_instance(LLRB_DELETE(instance_index, index, executed));
             }
@@ -155,7 +155,7 @@ int is_dep_conflict(struct instance *ti, uint64_t seq, struct dependency *deps,
             ((ti->key.instance_id < lt_instance) &&
              (ti->seq >= seq) &&
              ((ti->key.replica_id != replica_id) ||
-              ti->status > PRE_ACCEPTED_EQ))){
+              lt_state(ti, PRE_ACCEPTED_EQ)))){
         return 1;
     }
     return 0;
@@ -179,7 +179,7 @@ struct instance* pre_accept_conflict(
     while(nxt){
         ti = nxt;
         nxt = LLRB_PREV(instance_index, index, nxt);
-        if(is_state(ti->status, EXECUTED)){
+        if(is_state(ti, EXECUTED)){
             break;
         }
         if(has_key(&ti->key, deps)){

@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "instance.h"
+#include <ck_pr.h>
 #include <errno.h>
 
 struct message *message_from_instance(struct instance *i){
@@ -54,8 +55,42 @@ void destroy_instance(struct instance *i){
     free(i);
 }
 
-int is_state(enum state state_a, enum state state_b){
-    return (state_a & state_b) > 0;
+int is_sstate(enum state a, enum state b){
+    return (a & b) > 0;
+}
+
+int is_state(struct instance *i, enum state state_b){
+    int state_a = ck_pr_load_int((int*)&i->status);
+    ck_pr_fence_load_atomic();
+    ck_pr_and_int(&state_a, (int)state_b);
+    return state_a > 0;
+}
+
+int sub_state(struct instance *i, enum state state_b){
+    int state_a = ck_pr_load_int((int*)&i->status);
+    ck_pr_fence_load_atomic();
+    ck_pr_sub_int(&state_a, (int)state_b);
+    return state_a;
+}
+
+int lt_eq_state(struct instance *i, enum state state_b){
+    return sub_state(i, state_b) >= 0;
+}
+
+int lt_state(struct instance *i, enum state state_b){
+    return sub_state(i, state_b) > 0;
+}
+
+int st_state(struct instance *i, enum state state_b){
+    return sub_state(i, state_b) < 0;
+}
+
+void set_state(struct instance *i, enum state s){
+    ck_pr_fas_int((int*)&i->status, (int)s);
+}
+
+enum state get_state(struct instance *i){
+    return (enum state)ck_pr_load_int((int*)&i->status);
 }
 
 uint8_t unique_ballot(uint8_t ballot, size_t replica_id){
@@ -128,8 +163,7 @@ void update_recovery_instance(struct recovery_instance *ri, struct message *m){
 }
 
 //instance tree comparator
-int intcmp(struct instance *e1, struct instance *e2)
-{
+int intcmp(struct instance *e1, struct instance *e2){
     return (e1->key.instance_id < e2->key.instance_id ? -1 :
             e1->key.instance_id > e2->key.instance_id);
 }
@@ -174,7 +208,7 @@ int update_deps(struct dependency *deps, struct dependency *d) {
 
 int add_dep(struct dependency *deps, struct instance *i){
     struct dependency dep = {.id = i->key,
-        .committed = (i->status >= COMMITTED)};
+        .committed = is_committed(i)};
     return update_deps(deps, &dep);
 }
 
@@ -192,7 +226,7 @@ void timer_reset(struct timer *t, int time_out){
 }
 
 int is_committed(struct instance *i){
-    return (i->status >= COMMITTED);
+    return lt_eq_state(i, COMMITTED);
 }
 
 int has_uncommitted_deps(struct instance *i){

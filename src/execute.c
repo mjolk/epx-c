@@ -192,19 +192,21 @@ void execute_scc(struct executor *e, scc *comp){
                 continue;
 
             }
+            //another thread will never set status to executed
+            //so we don't have to synchronize to get a reliable read?
             struct instance *i = find_instance(e->r, &dep.id);
-            if((!i) || (!is_state(EXECUTED, i->status))) return;
+            if((!i) || (!is_state(i, EXECUTED))) return;
         }
     }
     sort_scc(comp);
     for(i = 0;i < MAX_DEPS;i++){
         if(!comp->nodes[i]) continue;
         struct instance *executed = comp->nodes[i]->i;
-        e->executed[i] = executed;
+        e->executed[i] = executed;//keep for testing
         k = kh_get(vertices, e->vertices, dh_key(&executed->key));
         if(k != kh_end(e->vertices)) kh_del(vertices, e->vertices, k);
         free(comp->nodes[i]);
-        executed->status = EXECUTED; //-->from now on the instance can be garbage collected
+        set_state(executed, EXECUTED);
     }
 }
 
@@ -213,7 +215,6 @@ void execute(struct executor *e){
     for(int i = 0;i < e->scc_count;i++){
         execute_scc(e, &e->sccs[i]);
     }
-    //TODO dispatch executed
     reset_exec(e);
 }
 
@@ -221,7 +222,7 @@ int run_execute(struct executor *e){
     return 0;
 }
 
-void read_committed(struct executor *e, int rep){
+void read_committed(struct executor *e){
     struct instance *i = 0;
     while(e->running){
         if(!chan_recv_spsc(&e->sync->chan_exec, &i)){

@@ -43,11 +43,11 @@ int send_io(struct replica *r, struct message *m){
 }
 
 int send_eo(struct replica *r, struct message *m){
-    return chan_send_spsc(&r->out->chan_eo, m);
+    return chan_send_mpsc(&r->out->chan_eo, m);
 }
 
-int send_exec(struct replica *r, struct message *m){
-    return chan_send_spsc(&r->out->chan_exec, m);
+int send_exec(struct replica *r, struct instance *i){
+    return chan_send_spsc(&r->out->chan_exec, i);
 }
 
 int new_replica(struct replica *r){
@@ -190,14 +190,7 @@ void barrier(struct replica *r, struct dependency *deps){
 
 struct instance* pac_conflict(struct replica *r, struct instance *i,
         struct command *c, uint64_t seq, struct dependency *deps){
-    if(i->command){
-        if(i->status >= ACCEPTED){
-            return i;
-        } else if(i->seq == seq && equal_deps(i->deps, deps)){
-            return 0;
-        }
-    }
-    struct instance *conflict;
+    struct instance *conflict = NULL;
     for(int rc = 0;rc < N;rc++){
         conflict = pre_accept_conflict(&r->index[rc], i, c, seq, deps);
         if(conflict) return conflict;

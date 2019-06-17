@@ -30,7 +30,8 @@ enum message_type {
     PREPARE,
     PREPARE_REPLY,
     TRY_PRE_ACCEPT,
-    TRY_PRE_ACCEPT_REPLY
+    TRY_PRE_ACCEPT_REPLY,
+    EXECUTE
 };
 
 struct message {
