@@ -12,7 +12,7 @@
 #include "llrb-interval/slist.h"
 #include "llrb-interval/llrb-interval.h"
 
-enum connection_status is_conn_status(
+int is_conn_status(
     struct connection *c,
     const int t
 ){
