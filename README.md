@@ -11,7 +11,7 @@ and flatbuffers [flatcc](https://github.com/dvidelabs/flatcc) for fast transport
 flatbuffers need no decoding so hopefully offsets a little the extra cycles burned by the
 consensus algo.
 
-####x to compile you need:
+#### to compile you need:
 - c11 compiler (clang/gcc)
 - [cmake](https://cmake.org/)
 - [ninja](https://ninja-build.org/) optional for faster builds. makes a difference for me allthough this is not a large project.
