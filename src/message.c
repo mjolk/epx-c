@@ -5,8 +5,9 @@
  * Date   : di 11 sep 2018 23:26
  */
 
-#include "message.h"
 #include <stdio.h>
+#include <ck_pr.h>
+#include "message.h"
 
 void instance_data_from_buffer(struct message *m, const void *buffer){
     if(buffer == 0){
@@ -106,16 +107,10 @@ void message_to_buffer(void *im, flatcc_builder_t *b){
     ns(message_end_as_root(b));
 }
 
-//used when distributing messages, this gives endpoints the chance to free
-//without having to resort to reference counters, locks etc
-struct message* copy_message(struct message *m){
-    struct message *copy_msg = malloc(sizeof(struct message));
-    if(!copy_msg) return 0;
-    struct command *copy_cmd = malloc(sizeof(struct command));
-    if(!copy_cmd) return 0;
-    *copy_msg = *m;
-    *copy_cmd = *m->command;
-    copy_msg->command = copy_cmd;
-    free(m);
-    return copy_msg;
+void destroy_message(struct message *m){
+    if(ck_pr_load_int(&m->ref) == 0) return;
+    bool f = false;
+    ck_pr_dec_int_zero(&m->ref, &f);
+    ck_pr_fence_atomic_load();
+    if(ck_pr_load_int((int*)&f)) free(m);
 }

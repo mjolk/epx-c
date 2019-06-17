@@ -27,7 +27,7 @@ struct client {
 };
 
 struct connection {
-    volatile enum connection_status status;
+    enum connection_status status;
     size_t xreplica_id;
     int handle;
     int prot_handle;
@@ -73,7 +73,6 @@ struct node_io {
     struct connection chan_nodes[N];
     size_t quorum[N];
     struct client_index clients;
-    pthread_mutex_t nconn_lock[N];
 };
 
 int start(struct node_io*);
