@@ -10,7 +10,7 @@ struct kv {
     char *value;
 };
 
-int init_store(struct store*);
+int open_store(struct store*);
 char* store_get(struct store*, struct kv*, size_t*);
 void store_put(struct store*, struct kv*);
-void store_batch_put(struct store*, struct kv**);
+void store_batch_put(struct store*, struct kv**, int);

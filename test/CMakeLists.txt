@@ -45,3 +45,7 @@ add_test(NAME execute COMMAND execute_test)
 add_executable(io_test io.c)
 target_link_libraries(io_test epx)
 add_test(NAME io COMMAND io_test)
+
+add_executable(storage_test storage.cpp)
+target_link_libraries(storage_test epx)
+add_test(NAME storage COMMAND storage_test)

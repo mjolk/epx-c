@@ -45,6 +45,30 @@ add_library(rocksdb STATIC IMPORTED)
 set_property(TARGET rocksdb PROPERTY
     IMPORTED_LOCATION /usr/local/lib/librocksdb.a)
 
+add_library(zlib STATIC IMPORTED)
+set_property(TARGET zlib PROPERTY
+    IMPORTED_LOCATION /usr/local/lib/libz.a)
+
+add_library(bzip2 STATIC IMPORTED)
+set_property(TARGET bzip2 PROPERTY
+    IMPORTED_LOCATION /usr/local/lib/libbz2.a)
+
+add_library(snappy STATIC IMPORTED)
+set_property(TARGET snappy PROPERTY
+    IMPORTED_LOCATION /usr/local/lib/libsnappy.a)
+
+add_library(lz4 STATIC IMPORTED)
+set_property(TARGET lz4 PROPERTY
+    IMPORTED_LOCATION /usr/local/lib/liblz4.a)
+
+add_library(zstandard STATIC IMPORTED)
+set_property(TARGET zstandard PROPERTY
+    IMPORTED_LOCATION /usr/local/lib/libzstd.a)
+
+add_library(jemalloc STATIC IMPORTED)
+set_property(TARGET jemalloc PROPERTY
+    IMPORTED_LOCATION /usr/local/lib/libjemalloc.a)
+
 add_library(epx
     instance_id.c
     command.c
@@ -55,23 +79,24 @@ add_library(epx
     epaxos.c
     fbs_sock.c
     channel.c
-    storage.c
+    storage.cpp
     execute.c
     io.c
     epx.c
     )
-
 add_dependencies(epx fbs_built)
-#target_include_directories(epx INTERFACE "${CMAKE_SOURCE_DIR}/src/fbs")
-#target_include_directories(epx INTERFACE "${CMAKE_SOURCE_DIR}/src/llrb-interval")
-#target_include_directories(epx INTERFACE "${CMAKE_SOURCE_DIR}/test/fbs")
 
-target_compile_features(epx PUBLIC c_std_11)
 target_link_libraries(epx
     imp_dill
     Threads::Threads
     debug flatccrt_debug
     optimized flatccrt
+    zlib
+    bzip2
+    snappy
+    lz4
+    zstandard
+    jemalloc
     rocksdb
     )
 
