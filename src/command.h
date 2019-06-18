@@ -30,11 +30,11 @@ struct span {
 };
 
 struct command {
-    struct span spans[100];
+    struct span spans[TX_SIZE];
     size_t tx_size;
     int id;
     enum io_t writing;
-    uint8_t *value;
+    char **value;
 };
 
 int command_from_buffer(struct command*, const void*);

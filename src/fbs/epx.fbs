@@ -14,11 +14,15 @@ table span {
   end_key:string;
 }
 
+table kvalue {
+  value:[byte];
+}
+
 table command {
   id:ubyte;
   spans:[span];
   writing:io_t;
-  value:[ubyte];
+  value:[kvalue];
 }
 
 struct instance_id {

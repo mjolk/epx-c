@@ -27,7 +27,7 @@ int command_from_buffer(struct command *c, const void *buffer) {
         }
         c->writing = ns(command_writing(cmd));
         //TODO defend buffer overflow
-        size_t scp = sizeof(ns(command_value(cmd)));
+        //size_t scp = sizeof(ns(command_value(cmd)));
         //memcpy(&c->value, ns(command_value(cmd)), scp);
         return 0;
     }
@@ -38,7 +38,7 @@ epx_command_ref_t command_to_buffer(struct command *c, flatcc_builder_t *b) {
     ns(command_start(b));
     ns(command_id_add(b, c->id));
     ns(command_spans_start(b));
-    for(int i = 0;i < 100;i++){
+    for(int i = 0;i < TX_SIZE;i++){
         if(empty_range(&c->spans[i])) continue;
         ns(command_spans_push_create(b,
                     flatbuffers_string_create_str(b, c->spans[i].start_key),
@@ -47,10 +47,12 @@ epx_command_ref_t command_to_buffer(struct command *c, flatcc_builder_t *b) {
     }
     ns(command_spans_end(b));
     ns(command_writing_add(b, c->writing));
-    if(c->value){
-        ns(command_value_create(b, c->value,
-                    sizeof(c->value)));
-    }
+    /* while(*c->value){
+        ns(command_value_push_create(b,
+            flatbuffers_char_vec_create(b, *c->value, 
+                sizeof(*c->value)/sizeof(*c->value[0]))));
+        c->value++;
+    } */
     return ns(command_end(b));
 }
 
