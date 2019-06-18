@@ -19,11 +19,6 @@ struct store {
     char *error;
 };
 
-void init_batch(struct store *store){
-    store->w_batch = rocksdb_writebatch_create();
-}
-
-
 int init_store(struct store *store){
     store->options = rocksdb_options_create();
     long cpus = sysconf(_SC_NPROCESSORS_ONLN);  // get # of online cores
@@ -35,7 +30,7 @@ int init_store(struct store *store){
     if(store->error) return -1;
     store->r_options = rocksdb_readoptions_create();
     store->w_options = rocksdb_writeoptions_create();
-    init_batch(store);
+    store->w_batch = rocksdb_writebatch_create();
     return 0;
 }
 
