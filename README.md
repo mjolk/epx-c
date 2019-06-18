@@ -8,7 +8,7 @@ and should better cope with fast changing quorum configurations. (That's the ide
 
 #### to compile you need:
 all dependencies need to be symlinked/installed/copied to /usr/local/{lib, include}
-- c11 compiler (clang/gcc)
+- c11 & c++17 compiler (clang/gcc)
 - [cmake](https://cmake.org/)
 - [ninja](https://ninja-build.org/) optional
 - [libdill](https://github.com/sustrik/libdill)
