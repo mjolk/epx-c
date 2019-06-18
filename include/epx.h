@@ -19,4 +19,5 @@
 #define MAX_LATENCY 60
 #define PREFIX_SIZE 4
 #define MAX_CLIENTS 10 //max clients per subscribed range.
+#define DB_PATH "/tmp/epx.db"
 #endif

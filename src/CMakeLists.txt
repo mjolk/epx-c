@@ -1,3 +1,7 @@
+#debug flags
+set(CMAKE_C_FLAGS_DEBUG
+    "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -Werror -Wno-long-long -Wno-variadic-macros -fexceptions -DUSE_CLANG_COMPLETER")
+
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
     message("debug mode")
     option(FLATCC_DEBUG_VERIFY ON)
@@ -37,6 +41,10 @@ add_library(flatccrt_debug STATIC IMPORTED)
 set_property(TARGET flatccrt_debug PROPERTY
     IMPORTED_LOCATION /usr/local/lib/libflatccrt_d.a)
 
+add_library(rocksdb STATIC IMPORTED)
+set_property(TARGET rocksdb PROPERTY
+    IMPORTED_LOCATION /usr/local/lib/librocksdb.a)
+
 add_library(epx
     instance_id.c
     command.c
@@ -47,6 +55,7 @@ add_library(epx
     epaxos.c
     fbs_sock.c
     channel.c
+    storage.c
     execute.c
     io.c
     epx.c
@@ -63,6 +72,7 @@ target_link_libraries(epx
     Threads::Threads
     debug flatccrt_debug
     optimized flatccrt
+    rocksdb
     )
 
 add_executable(epx_service main.c)

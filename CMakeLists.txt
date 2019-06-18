@@ -17,10 +17,11 @@ configure_file(
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-#debug flags
-set(CMAKE_C_FLAGS_DEBUG
-    "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -Werror -Wno-long-long -Wno-variadic-macros -fexceptions -DUSE_CLANG_COMPLETER")
 add_subdirectory(src)
+
+#option(WITH_LZ4 ON "use lz4 compression in rocksdb")
+#option(WITH_TESTS OFF "disable rocksdb tests")
+#add_subdirectory(rocksdb)
 
 enable_testing()
 add_subdirectory(test)

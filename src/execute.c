@@ -7,6 +7,7 @@
 
 #include <errno.h>
 #include "epaxos.h"
+#include "storage.h"
 
 typedef struct scc {
     struct tarjan_node *nodes[MAX_DEPS];
