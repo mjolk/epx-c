@@ -16,5 +16,6 @@ all dependencies need to be symlinked/installed/copied to /usr/local/{lib, inclu
 - [concurrencykit](https://github.com/concurrencykit/ck)
 - [llrb](https://github.com/mjolk/llrb-interval.git)
 - [rocksdb](https://github.com/facebook/rocksdb)
+- [klib](https://github.com/attractivechaos/klib)
    
 
