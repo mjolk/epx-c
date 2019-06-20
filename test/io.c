@@ -11,12 +11,12 @@ struct message* test_message(
     char *end_key,
     enum message_type t
 ){
-    struct command *cmd = malloc(sizeof(struct command));
+    struct command *cmd = (struct command*)malloc(sizeof(struct command));
     if(!cmd) return 0;
     strcpy(cmd->spans[0].start_key, start_key);
     strcpy(cmd->spans[0].end_key, end_key);
     memset(cmd->spans[0].max, 0, KEY_SIZE);
-    struct message *m = malloc(sizeof(struct message));
+    struct message *m = (struct message*)malloc(sizeof(struct message));
     if(!m) return 0;
     m->type = t;
     m->command = cmd;
@@ -95,8 +95,8 @@ coroutine void check_step(struct node_io *io){
 
 void test_create(){
     struct node_io io;
-    assert(start(&io) == 0);
-    stop(&io);
+    assert(start_io(&io) == 0);
+    stop_io(&io);
 }
 
 void test_client(){
@@ -105,7 +105,7 @@ void test_client(){
     struct node_io io;
     chan_init(&io.sync.chan_propose);
     chan_init(&io.io_sync.chan_eo);
-    assert(start(&io) == 0);
+    assert(start_io(&io) == 0);
     sleep(1);//wait for node to be initialized
     bundle_go(b, test_client_client(&client));
     bundle_go(b, check_propose(&io));
@@ -120,7 +120,7 @@ void test_client(){
     assert((frsp));
     assert(strcmp(frsp->start_key, "ab") == 0);
     assert(frsp->clients[0].chan > 0);
-    stop(&io);
+    stop_io(&io);
 }
 
 void test_node(){
@@ -131,7 +131,7 @@ void test_node(){
     io.node_id = 1;
     chan_init(&io.sync.chan_step);
     chan_init(&io.io_sync.chan_io);
-    assert(start(&io) == 0);
+    assert(start_io(&io) == 0);
     bundle_go(b, test_node_client(&client));
     bundle_go(b, check_step(&io));
     bundle_wait(b, -1);
@@ -141,7 +141,7 @@ void test_node(){
     m->from = 2;
     assert(chan_send_spsc(&io.io_sync.chan_io, m));
     bundle_wait(b, -1);
-    stop(&io);
+    stop_io(&io);
 }
 
 int main(){

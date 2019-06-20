@@ -21,7 +21,8 @@ struct instance* find_conflict(struct replica *r, struct instance *i,
 }
 
 struct leader_tracker *new_tracker(){
-    struct leader_tracker *lt = calloc(1, sizeof(struct leader_tracker));
+    struct leader_tracker *lt = (struct leader_tracker*)calloc(1, 
+        sizeof(struct leader_tracker));
     if(!lt){ errno = ENOMEM; return 0;}
     lt->ri.status = NONE;
     lt->recovery_status = NONE;
@@ -75,7 +76,7 @@ void checkpoint(struct replica *r, struct message *m){
     if(register_instance(r, i ) < 0) return;
     barrier(r, i->deps);
     if(!m){
-        m = malloc(sizeof(struct message));
+        m = (struct message*)malloc(sizeof(struct message));
     }
     m->id = i->key;
     memcpy(m->deps, i->deps, DEPSIZE);
@@ -139,8 +140,8 @@ void phase1(struct replica *r, struct instance *i, struct message *m){
 }
 
 void pre_accept(struct replica *r, struct instance *i, struct message *m){
-    if(is_state(i, (COMMITTED | ACCEPTED))) return; //TODO sync to stable storage
-    if(!is_state(i, (PRE_ACCEPTED | NONE))) return;
+    if(is_state(i, (enum state)(COMMITTED | ACCEPTED))) return; //TODO sync to stable storage
+    if(!is_state(i, (enum state)(PRE_ACCEPTED | NONE))) return;
     if(m->ballot < i->ballot){
         m->ballot = i->ballot;
         m->command = i->command;
@@ -229,7 +230,7 @@ void pre_accept_reply(struct replica *r, struct instance *i, struct message *m){
 
 //TODO add checkpointing
 static void accept(struct replica *r, struct instance *i, struct message *m){
-    if(is_state(i, (COMMITTED | EXECUTED))) return;
+    if(is_state(i, (enum state)(COMMITTED | EXECUTED))) return;
     if(m->ballot < i->ballot){
         m->nack = 1;
         m->ballot = i->ballot;
@@ -291,7 +292,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         return;
     }
     ++i->lt->prepare_oks;
-    if(is_sstate(m->instance_status, (COMMITTED | EXECUTED))){
+    if(is_sstate(m->instance_status, (enum state)(COMMITTED | EXECUTED))){
         i->seq = m->seq;
         i->command = m->command;
         m->ballot = i->ballot;
@@ -306,7 +307,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
             i->lt->ri.pre_accept_count++;
         }
     }
-    if(is_sstate(m->instance_status, (PRE_ACCEPTED | PRE_ACCEPTED_EQ)) &&
+    if(is_sstate(m->instance_status, (enum state)(PRE_ACCEPTED | PRE_ACCEPTED_EQ)) &&
             (i->lt->ri.status < ACCEPTED)){
         if(is_sstate(i->lt->ri.status, NONE) ||
                 is_sstate(m->instance_status, PRE_ACCEPTED_EQ)){
@@ -354,7 +355,7 @@ void prepare_reply(struct replica *r, struct instance *i, struct message *m){
         struct instance *conflict = pac_conflict(r, i, ri.command, ri.seq,
                 ri.deps);
         if(conflict){
-            if(conflict->status >= COMMITTED){
+            if(is_committed(conflict)){
                 m->type = PHASE1;
                 m->command = ri.command;
                 m->ballot = i->ballot;
@@ -539,7 +540,7 @@ void progress(struct replica *r, struct instance *i, struct message *m){
 
 void slow_path_timeout(struct replica *r, struct timer *t) {
     //struct message *nm = message_from_instance(t->instance);
-    struct message *nm = malloc(sizeof(struct message));
+    struct message *nm = (struct message*)malloc(sizeof(struct message));
     nm->type = PREPARE;
     recover(r, t->instance, nm);
 }
@@ -578,9 +579,12 @@ int propose(struct replica *r, struct message *m){
     return 0;
 }
 
-void run(struct replica *r){
+void* run(void* rep){
+    struct replica *r = (struct replica*)rep;
+    pthread_cleanup_push(destroy_replica, r);
+    if(new_replica(r) != 0) return 0;
     int rc = 0;
-    rc = run_replica(r);
+    int err = 0;
     if(r->checkpoint){
         r->ticker.time_out = r->checkpoint<<r->id;
         r->ticker.elapsed = 0;
@@ -592,6 +596,7 @@ void run(struct replica *r){
         {CHRECV, r->chan_ii[1], &m, MSG_SIZE},/** churn **/
         {CHRECV, r->chan_propose[1], &m, MSG_SIZE} /** new io **/
     };
+    if(run_replica(r) != 0) return 0;
     while(r->running && rc >= 0){
         rc = choose(cls, 3, -1);
         switch(rc){
@@ -599,19 +604,18 @@ void run(struct replica *r){
                 tick(r);
                 break;
             case 1:
-                rc = step(r, m);
+                err = step(r, m);
                 break;
             case 2:
-                rc = propose(r, m);
+                err = propose(r, m);
                 break;
         }
+        if(err < 0){
+            //TODO stop replica
+            pthread_exit(NULL);
+            return 0;
+        }
     }
-    //rc = chsend(chan_s, &rc, 1, -1);
-    r->running = 0;
-    if(rc < 0){
-        //totally fucked
-        perror("error!");
-        exit(1);
-    }
-    return;
+    pthread_cleanup_pop(0);
+    return 0;
 }

@@ -11,8 +11,9 @@
 
 
 int command_from_buffer(struct command *c, const void *buffer) {
-    if(ns(instance_data_command_is_present(buffer))){
-        ns(command_table_t) cmd = ns(instance_data_command(buffer));
+    if(ns(instance_data_command_is_present((ns(instance_data_table_t))buffer))){
+        ns(command_table_t) cmd =
+            ns(instance_data_command((ns(instance_data_table_t))buffer));
         if(cmd == 0){
             return 1;
         }
@@ -25,7 +26,7 @@ int command_from_buffer(struct command *c, const void *buffer) {
             strcpy(c->spans[i].end_key,
                     ns(span_end_key(ns(span_vec_at(spans, i)))));
         }
-        c->writing = ns(command_writing(cmd));
+        c->writing = (enum io_t)ns(command_writing(cmd));
         //TODO defend buffer overflow
         //size_t scp = sizeof(ns(command_value(cmd)));
         //memcpy(&c->value, ns(command_value(cmd)), scp);

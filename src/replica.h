@@ -4,12 +4,13 @@
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 06 sep 2018 20:21
  */
-
+#ifndef EPX_REPLICA
+#define EPX_REPLICA
 #include <err.h>
 #include <libdill.h>
 #include "index.h"
 #include "sync.h"
-#include "hash.h"
+#include "klib/khash.h"
 
 KHASH_MAP_INIT_INT64(deferred, size_t)
 
@@ -45,8 +46,9 @@ void tick(struct replica*);
 int send_eo(struct replica*, struct message*);
 int send_exec(struct replica*, struct instance*);
 int send_io(struct replica*, struct message*);
-void destroy_replica(struct replica*);
+void destroy_replica(void*);
 int run_replica(struct replica*);
 void noop(struct replica*, struct instance_id*, struct dependency*);
 void barrier(struct replica*, struct dependency*);
 void clear(struct replica*);
+#endif

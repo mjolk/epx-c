@@ -37,10 +37,11 @@ int fbs_sock_attach(int u, struct fbs_sock *s) {
     s->recvdone = 0;
     flatcc_builder_init(&s->b);
     int rc = bsend(s->u, &s->replica_id, 1, s->deadline);
+    int h;
     if(rc < 0) {err = errno; goto sock_error;}
     rc = brecv(s->u, &s->xreplica_id, 1, s->deadline);
     if(rc < 0) {err = errno; goto sock_error;}
-    int h = hmake(&s->hvfs);
+    h = hmake(&s->hvfs);
     if(h < 0) {err = errno; goto sock_error;}
     return h;
 sock_error:
@@ -51,17 +52,18 @@ sock_error:
 }
 
 size_t fbs_sock_remote_id(int h){
-    struct fbs_sock *self = hquery(h, fbs_sock_type);
+    struct fbs_sock *self = (struct fbs_sock*)hquery(h, fbs_sock_type);
     if(!self) return -1;
     return self->xreplica_id;
 }
 
 int fbs_sock_detach(int h, int64_t deadline) {
     int err;
-    struct fbs_sock *self = hquery(h, fbs_sock_type);
+    struct fbs_sock *self = (struct fbs_sock*)hquery(h, fbs_sock_type);
     if(!self) return -1;
+    int u;
     if(self->senderr || self->recverr) {err = ECONNRESET; goto error;}
-    int u = self->u;
+    u = self->u;
     return u;
 error:
     fbs_sock_hclose(&self->hvfs);

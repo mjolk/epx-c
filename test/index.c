@@ -36,14 +36,14 @@ struct instance *create_instance(size_t rid, const char *start_key,
     strcpy(s[0].start_key, start_key);
     strcpy(s[0].end_key, end_key);
     memset(s[0].max, 0, KEY_SIZE);
-    struct command *cmd = malloc(sizeof(struct command));
+    struct command *cmd = (struct command*)malloc(sizeof(struct command));
     assert(cmd != 0);
     memcpy(cmd->spans, s, sizeof(struct span));
     cmd->id = 1111;
     cmd->writing = rw;
     cmd->value = 0;
     cmd->tx_size = 1;
-    struct instance *i = malloc(sizeof(struct instance));
+    struct instance *i = (struct instance*)malloc(sizeof(struct instance));
     assert(i != 0);
     i->key.replica_id = rid;
     i->command = cmd;

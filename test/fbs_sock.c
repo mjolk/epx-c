@@ -25,7 +25,7 @@ struct test_message {
 };
 
 int tdec(void *im, void *buf){
-    struct test_message *m = im;
+    struct test_message *m = (struct test_message*)im;
     tns(test_message_table_t) tm = tns(test_message_as_root(buf));
     assert(tm != 0);
     strncpy(m->id, tns(test_message_id(tm)), ID);
@@ -34,7 +34,7 @@ int tdec(void *im, void *buf){
 }
 
 void tenc(void *im, flatcc_builder_t *b){
-    struct test_message *m = im;
+    struct test_message *m = (struct test_message*)im;
     tns(test_message_start_as_root(b));
     tns(test_message_id_create_str(b, m->id));
     tns(test_message_replica_id_add(b, m->replica_id));
@@ -42,7 +42,7 @@ void tenc(void *im, flatcc_builder_t *b){
 }
 
 struct fbs_sock *new_fbs_sock(size_t rid){
-    struct fbs_sock *sock = malloc(sizeof(struct fbs_sock));
+    struct fbs_sock *sock = (struct fbs_sock*)malloc(sizeof(struct fbs_sock));
     assert(sock != 0);
     sock->decode = tdec;
     sock->encode = tenc;
@@ -54,7 +54,7 @@ struct fbs_sock *new_fbs_sock(size_t rid){
 }
 
 coroutine void ipc_client(int s){
-    struct test_message *m = malloc(MSGSIZE);
+    struct test_message *m = (struct test_message*)malloc(MSGSIZE);
     strncpy(m->id, msgstr, ID);
     m->replica_id = 1;
     struct fbs_sock *sock = new_fbs_sock(2);
@@ -104,7 +104,7 @@ void ipc_test(){
 }
 
 coroutine void tcp_client(int port){
-    struct test_message *m = malloc(MSGSIZE);
+    struct test_message *m = (struct test_message*)malloc(MSGSIZE);
     strncpy(m->id, msgstr, ID);
     m->replica_id = 1;
     struct fbs_sock *sock = new_fbs_sock(2);

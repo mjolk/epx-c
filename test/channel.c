@@ -15,7 +15,7 @@ void *receivemsg(void*);
 
 int main(){
 
-    chan *channel = malloc(sizeof(struct chan));
+    chan *channel = (struct chan*)malloc(sizeof(struct chan));
     chan_init(channel);
     pthread_t sending[3];
     pthread_t receiving[1];
@@ -44,12 +44,12 @@ struct entry {
 void *sendmsg(void *ch){
     for(int i = 0;i < 1000;i++){
         //char *msg = malloc(sizeof(char)*5);
-        struct entry *msg = malloc(sizeof(struct entry));
+        struct entry *msg = (struct entry*)malloc(sizeof(struct entry));
         sprintf(msg->msg, "%d", i);
         msg->id = i;
         //if(sprintf(msg, "%d", i) < 0) return 0;
         //printf("sending msg: %d  %s @: %p\n", msg->id, msg->msg, msg);
-        if(!sem_chan_send_mpsc(ch, msg)){
+        if(!sem_chan_send_mpsc((struct chan*)ch, msg)){
             printf("channel full\n");
         }
     }
@@ -61,7 +61,7 @@ void *receivemsg(void *ch){
     int cnt = 0;
     while(running){
         struct entry *msg = 0;
-        if(!sem_chan_recv_mpsc(ch, &msg)){
+        if(!sem_chan_recv_mpsc((struct chan*)ch, &msg)){
             printf("channel empty\n");
             cnt++;
             if(cnt == 3000) running = 0;

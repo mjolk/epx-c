@@ -6,6 +6,7 @@
  */
 
 #include "replica.h"
+#include "io.h"
 
-void run(struct replica*);
+void* run(void*);
 uint64_t dh_key(struct instance_id*);

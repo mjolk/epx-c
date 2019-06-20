@@ -5,6 +5,8 @@
  * Date   : zo 10 feb 2019 13:29
  */
 
+#ifndef EPX_IO
+#define EPX_IO
 #include <pthread.h>
 #include "fbs_sock.h"
 #include "sync.h"
@@ -75,5 +77,6 @@ struct node_io {
     struct client_index clients;
 };
 
-int start(struct node_io*);
-void stop(struct node_io*);
+int start_io(struct node_io*);
+void stop_io(struct node_io*);
+#endif

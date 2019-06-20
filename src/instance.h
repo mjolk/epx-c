@@ -4,7 +4,8 @@
  * Author : Dries Pauwels <2mjolk@gmail.com>
  * Date   : do 06 sep 2018 03:42
  */
-
+#ifndef EPX_INSTANCE
+#define EPX_INSTANCE
 #include "llrb-interval/slist.h"
 #include "message.h"
 
@@ -95,3 +96,4 @@ int has_key(struct instance_id*, struct dependency*);
 uint64_t lt_dep_replica(size_t, struct dependency*);
 void destroy_instance(struct instance*);
 void set_dep_committed(struct instance_id*, struct dependency*);
+#endif

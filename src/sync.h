@@ -5,6 +5,8 @@
  * Date   : zo 10 feb 2019 13:18
  */
 
+#ifndef EPX_SYNC
+#define EPX_SYNC
 #include "../include/epx.h"
 #include "channel.h"
 
@@ -27,3 +29,4 @@ struct io_sync {
     chan chan_io;//internal node communications(internal out)
     chan chan_exec;//instances ready to be executed
 };
+#endif

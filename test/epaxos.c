@@ -46,7 +46,7 @@ struct span sp2[4] = {
 };
 
 struct command *create_command(char *start_key, char *end_key, enum io_t rw){
-    struct command *cmd = malloc(sizeof(struct command));
+    struct command *cmd = (struct command*)malloc(sizeof(struct command));
     strcpy(cmd->spans[0].start_key, start_key);
     strcpy(cmd->spans[0].end_key, end_key);
     memset(cmd->spans[0].max, 0, KEY_SIZE);
@@ -59,7 +59,7 @@ struct message *create_message(enum message_type t, char *start_key,
         char *end_key, enum io_t rw){
     struct command *cmd = create_command(start_key, end_key, rw);
     if(!cmd) return 0;
-    struct message *m  = malloc(sizeof(struct message));
+    struct message *m  = (struct message*)malloc(sizeof(struct message));
     m->command = cmd;
     m->type = t;
     m->start = 0;
@@ -71,7 +71,7 @@ struct message *create_message(enum message_type t, char *start_key,
 }
 
 void copy_command(struct message *m){
-    struct command *cmd = malloc(sizeof(struct command));
+    struct command *cmd = (struct command*)malloc(sizeof(struct command));
     *cmd = *m->command;
     m->command = cmd;
 }
@@ -279,7 +279,7 @@ void recovery0(){
     ri5->key = ri4->key;
     register_instance(&r1, ri4);
     register_instance(&r2, ri5);
-    struct message *recovery_msg = malloc(sizeof(struct message));
+    struct message *recovery_msg = (struct message*)malloc(sizeof(struct message));
     assert(recovery_msg);
     recover(&r1, ri0, recovery_msg);
     struct message *rep;

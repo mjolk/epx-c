@@ -12,7 +12,7 @@
 #include <errno.h>
 
 struct message *message_from_instance(struct instance *i){
-    struct message *nm = malloc(sizeof(struct message));
+    struct message *nm = (struct message*)malloc(sizeof(struct message));
     if(!nm){ errno = ENOMEM; return 0;};
     nm->ballot = i->ballot;
     nm->command = i->command;
@@ -23,7 +23,7 @@ struct message *message_from_instance(struct instance *i){
 }
 
 struct instance *instance_from_message(struct message *m){
-    struct instance *i = malloc(sizeof(struct instance));
+    struct instance *i = (struct instance*)malloc(sizeof(struct instance));
     if(!i){ errno = ENOMEM; return 0;}
     i->ballot = m->ballot;
     i->seq = m->seq;
@@ -35,7 +35,7 @@ struct instance *instance_from_message(struct message *m){
 }
 
 struct instance *new_instance(){
-    struct instance *i = malloc(sizeof(struct instance));
+    struct instance *i = (struct instance*)malloc(sizeof(struct instance));
     if(!i){ errno = ENOMEM; return 0;}
     i->ballot = 0;
     i->seq = 0;

@@ -87,7 +87,8 @@ on_error:
     return -1;
 }
 
-void destroy_replica(struct replica *r){
+void destroy_replica(void* rep){
+    struct replica *r = (struct replica*)rep;
     r->running = 0;
     hclose(r->ap);
     hclose(r->chan_tick[0]);

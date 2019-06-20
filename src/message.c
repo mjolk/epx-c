@@ -17,8 +17,8 @@ void instance_data_from_buffer(struct message *m, const void *buffer){
     if(cp > 0 ){
         m->command = 0;
     }
-    m->seq = ns(instance_data_seq(buffer));
-    ns(dependency_vec_t) rdps = ns(instance_data_deps(buffer));
+    m->seq = ns(instance_data_seq((ns(instance_data_table_t))buffer));
+    ns(dependency_vec_t) rdps = ns(instance_data_deps((ns(instance_data_table_t))buffer));
     size_t veclen = ns(dependency_vec_len(rdps));
     size_t len = (veclen > N)?N:veclen;
     for(size_t i = 0; i < len; i++){
@@ -30,15 +30,16 @@ void instance_data_from_buffer(struct message *m, const void *buffer){
 }
 
 int message_from_buffer(void *im, void *buffer){
-    struct message *m = im;
+    ns(instance_id_struct_t) i_id;
+    struct message *m = (struct message*)im;
     ns(message_table_t) bm = ns(message_as_root(buffer));
     if(!bm) goto error;
     m->to = ns(message_to(bm));
     m->from = ns(message_from(bm));
     m->nack = ns(message_nack(bm));
     m->ballot = ns(message_ballot(bm));
-    m->instance_status = ns(message_instance_status(bm));
-    ns(instance_id_struct_t) i_id = ns(message_instance_id(bm));
+    m->instance_status = (enum state)ns(message_instance_status(bm));
+    i_id = ns(message_instance_id(bm));
     if(!i_id){
         goto error;
     }
@@ -47,7 +48,7 @@ int message_from_buffer(void *im, void *buffer){
     if(!ns(message_type_is_present(bm))){
         goto error;
     }
-    m->type = ns(message_type(bm));
+    m->type = (enum message_type)ns(message_type(bm));
     if(ns(message_stp_is_present(bm))){
         m->stop = ns(message_stp(bm));
     }
@@ -87,7 +88,7 @@ epx_instance_data_ref_t instance_data_to_buffer(struct message *m,
 }
 
 void message_to_buffer(void *im, flatcc_builder_t *b){
-    struct message *m = im; 
+    struct message *m = (struct message*)im; 
     ns(message_start_as_root(b));
     ns(message_to_add(b, m->to));
     ns(message_from_add(b, m->from));
@@ -111,6 +112,5 @@ void destroy_message(struct message *m){
     if(ck_pr_load_int(&m->ref) == 0) return;
     bool f = false;
     ck_pr_dec_int_zero(&m->ref, &f);
-    ck_pr_fence_atomic_load();
-    if(ck_pr_load_int((int*)&f)) free(m);
+    if(f) free(m);
 }

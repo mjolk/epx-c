@@ -5,6 +5,9 @@
  * Date   : wo 12 sep 2018 16:06
  */
 
+#ifndef EPX_MESSAGE
+#define EPX_MESSAGE
+
 #include "command.h"
 
 enum state {
@@ -59,3 +62,5 @@ struct message {
 int message_from_buffer(void*, void*);
 void message_to_buffer(void*, flatcc_builder_t*);
 void destroy_message(struct message*);
+
+#endif

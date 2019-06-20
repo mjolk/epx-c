@@ -7,7 +7,6 @@
 
 #include <sys/socket.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include "io.h"
 #include "llrb-interval/slist.h"
 #include "llrb-interval/llrb-interval.h"
@@ -201,7 +200,7 @@ int new_node_connection(struct connection *c){
 }
 
 void* try_connect(void *conn){
-    struct connection *c = conn;
+    struct connection *c = (struct connection*)conn;
     int tries = 0;
     int reconnect = 3;
     do {
@@ -293,7 +292,8 @@ coroutine void client_listener(struct node_io *n){
             msleep(now() + 60);
             continue;
         }
-        struct connection *nns = malloc(sizeof(struct connection));
+        struct connection *nns = (struct connection*)malloc(
+            sizeof(struct connection));
         if(!nns) exit(1);//TODO crash and burn
         nns->chan_write = &n->sync.chan_propose;
         nns->n = n;
@@ -345,7 +345,7 @@ void register_client(struct registered_span rsps[], struct node_io *n){
         if(empty_rrange(&rsps[i])) break;
         if(LLRB_RANGE_GROUP_ADD(client_index, &n->clients,
             &rsps[i], &cg, merge_clients)){
-                struct registered_span *rsp = malloc(
+                struct registered_span *rsp = (struct registered_span*)malloc(
                     sizeof(struct registered_span)
                 );
                 *rsp = rsps[i];
@@ -355,9 +355,9 @@ void register_client(struct registered_span rsps[], struct node_io *n){
 }
 
 struct message* new_message(){
-    struct message *msg = malloc(sizeof(struct message));
+    struct message *msg = (struct message*)malloc(sizeof(struct message));
     if(!msg) { errno = ENOMEM; return 0;}
-    struct command *cmd = malloc(sizeof(struct command));
+    struct command *cmd = (struct command*)malloc(sizeof(struct command));
     if(!cmd) { errno = ENOMEM; return 0;}
     msg->command = cmd;
     msg->ref = 1;
@@ -544,7 +544,7 @@ void destroy_rsp(struct registered_span *rsp){
 }
 
 void* client_handler(void* nio){
-    struct node_io *n = nio;
+    struct node_io *n = (struct node_io*)nio;
     n->ap_client = bundle();
     if(bundle_go(n->ap_client, client_listener(n)) != 0) goto error;
     if(bundle_go(n->ap_client, eo_reader(n)) != 0) goto error;
@@ -557,7 +557,7 @@ error:
     pthread_exit(NULL);
 }
 
-int start(struct node_io *n){
+int start_io(struct node_io *n){
     n->running = 1;
     n->ap = bundle();
     if(n->ap < 0) goto error;
@@ -573,7 +573,7 @@ error:
     return -1;
 }
 
-void stop(struct node_io *n){
+void stop_io(struct node_io *n){
     n->running = 0;
     hclose(n->ap);
     hclose(n->ap_client);

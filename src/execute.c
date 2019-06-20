@@ -6,7 +6,7 @@
  */
 
 #include <errno.h>
-#include "epaxos.h"
+#include "execute.h"
 #include "storage.h"
 
 typedef struct scc {
@@ -30,7 +30,8 @@ int contains(scc *comp, struct tarjan_node *t){
 }
 
 struct tarjan_node *new_tn(struct instance *i){
-    struct tarjan_node *node = malloc(sizeof(struct tarjan_node));
+    struct tarjan_node *node = (struct tarjan_node*)malloc(
+        sizeof(struct tarjan_node));
     if(!node){ errno = ENOMEM; return 0;}
     node->i = i;
     node->index = -1;
@@ -49,6 +50,7 @@ void reset_node(struct tarjan_node *n){
     n->index = -1;
     n->low_link = -1;
     n->on_stack = 0;
+    n->next.sle_next = 0;
     memset(n->deps, 0, sizeof(struct tarjan_node*)*MAX_DEPS);
 }
 
@@ -60,7 +62,6 @@ SLL_HEAD(stack, tarjan_node);
 KHASH_MAP_INIT_INT64(vertices, struct tarjan_node*);
 
 struct executor {
-    struct io_sync *sync;
     struct replica *r;
     khash_t(vertices) *vertices;
     int scc_count;
@@ -68,7 +69,6 @@ struct executor {
     scc sccs[MAX_DEPS];
     struct instance *executed[MAX_DEPS];
     int index;
-    int running;
 };
 
 void reset_exec(struct executor *e){
@@ -79,12 +79,9 @@ void reset_exec(struct executor *e){
     e->index = 0;
 }
 
-struct executor *new_executor(){
-    struct executor *e = calloc(1, sizeof(struct executor));
-    if(!e){ errno = ENOMEM; return 0;}
+void new_executor(struct executor *e){
     e->vertices = kh_init(vertices);
     SLL_INIT(&e->stack);
-    return e;
 }
 
 struct tarjan_node *pop(struct executor *e){
@@ -103,7 +100,7 @@ void visit(struct executor *e, struct tarjan_node *n){
     e->index++;
     n->on_stack = 1;
     push(e, n);
-    struct tarjan_node *tn;
+    struct tarjan_node *tn = 0;
 
     for(int i = 0;i < MAX_DEPS;i++){
         if((tn = n->deps[i])){
@@ -116,6 +113,7 @@ void visit(struct executor *e, struct tarjan_node *n){
         }
     }
 
+    tn = 0;
     if(n->low_link == n->index){
         int cnt = 0;
         while(tn != n){
@@ -219,20 +217,23 @@ void execute(struct executor *e){
     reset_exec(e);
 }
 
-int run_execute(struct executor *e){
-    return 0;
-}
-
-void read_committed(struct executor *e){
+void* run_execute(void* rep){
+    struct replica *r = (struct replica*)rep;
+    struct executor e;
+    reset_exec(&e);
+    new_executor(&e);
+    e.r = r;
     struct instance *i = 0;
-    while(e->running){
-        if(!chan_recv_spsc(&e->sync->chan_exec, &i)){
+    while(e.r->running){
+        if(!chan_recv_spsc(&e.r->out->chan_exec, &i)){
             continue;
         }
         if(i){
-            if(add_node(e, i)){
-                execute(e);
+            if(add_node(&e, i)){
+                execute(&e);
             }
         }
     }
+    pthread_exit(NULL);
+    return 0;
 }
