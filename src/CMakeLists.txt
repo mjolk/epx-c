@@ -82,7 +82,8 @@ add_library(epx
     storage.cpp
     execute.c
     io.c
-    epx.c
+    node.c
+    main.c
     )
 add_dependencies(epx fbs_built)
 
