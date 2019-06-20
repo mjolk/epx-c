@@ -20,4 +20,5 @@
 #define PREFIX_SIZE 4
 #define MAX_CLIENTS 10 //max clients per subscribed range.
 #define DB_PATH "/tmp/epx.db"
+#define FREQUENCY 2
 #endif
