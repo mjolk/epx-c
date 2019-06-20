@@ -6,6 +6,7 @@
  */
 
 #include "../src/execute.c"
+#include <stdio.h>
 
 struct test_scc {
     struct edge *edges;
@@ -115,9 +116,10 @@ void insert_edge(khash_t(nodes) *n, uint64_t id){
     int absent;
     k = kh_put(nodes, n, id, &absent);
     if(absent){
-        struct instance *inst = malloc(sizeof(struct instance));
+        struct instance *inst = (struct instance*)malloc(sizeof(struct instance));
         memset(inst->deps, 0, sizeof(struct dependency)*MAX_DEPS);
         inst->key.instance_id = id;
+        inst->key.replica_id = 0;
         kh_value(n, k) = inst;
     }
 }
@@ -162,20 +164,20 @@ void test_scc(){
     memcpy(cases[4].components, components4, sizeof(int64_t)*5);
     cases[4].nr_comps = 1;
     khint_t k;
-    struct executor *e = new_executor();
+    struct executor e;
+    reset_exec(&e);
+    new_executor(&e);
     khash_t(nodes) *n = kh_init(nodes);
     int tests = 5;
     for(int i = 0;i < tests;i++){
         kh_clear(nodes, n);
         khint_t k;
-        /**
-         * DEBUG
+         /** DEBUG
             for(k = kh_begin(n);k != kh_end(n);++k){
                 if(!kh_exist(n, k)) continue;
                     printf("key: %d\n", k);
                     printf("value: %p\n", kh_value(n, k));
-            }
-         **/
+            } **/
         for(int j = 0;j < cases[i].nr_edges;j++){
             int absent = 0;
             struct edge edge = cases[i].edges[j];
@@ -192,7 +194,7 @@ void test_scc(){
         }
         struct instance *add;
         kh_foreach_value(n, add, {
-            add_node(e, add);
+            add_node(&e, add);
         })
         /**
          * DEBUG
@@ -202,10 +204,10 @@ void test_scc(){
                 add_node(e, add);
             }
          **/
-        strong_connect(e);
+        strong_connect(&e);
         int comp_cnt = cases[i].nr_comps;
         for(int m = 0;m < comp_cnt;m++){
-            scc comp = e->sccs[m];
+            scc comp = e.sccs[m];
             sort_test_scc(&comp);
             for(int no = 0;no < 5;no++){
                 if(cases[i].components[m][no] < 0) continue;
@@ -213,19 +215,18 @@ void test_scc(){
                         comp.nodes[no]->i->key.instance_id);
             }
         }
-        reset_exec(e);
+        reset_exec(&e);
         struct instance *del;
         kh_foreach_value(n, del, {
                 free(del);
         })
         struct tarjan_node *tn;
-        kh_foreach_value(e->vertices, tn, {
+        kh_foreach_value(e.vertices, tn, {
                 free(tn);
         })
-        kh_clear(vertices, e->vertices);
+        kh_clear(vertices, e.vertices);
     }
-    kh_destroy(vertices, e->vertices);
-    free(e);
+    kh_destroy(vertices, e.vertices);
     kh_destroy(nodes, n);
 }
 
@@ -593,14 +594,15 @@ void test_execution(){
     struct replica r;
     assert(new_replica(&r) == 0);
     for(int i = 0;i < 2;i++){
-        struct instance *ni = malloc(sizeof(struct instance));
+        struct instance *ni = (struct instance*)malloc(sizeof(struct instance));
         assert((ni));
         *ni = executed[i];
         assert(register_instance(&r, ni) == 0);
     }
-    struct executor *exec;
-    assert((exec = new_executor()));
-    exec->r = &r;
+    struct executor exec;
+    reset_exec(&exec);
+    new_executor(&exec);
+    exec.r = &r;
     int tests = 6;
     int c;
     int ic;
@@ -609,17 +611,17 @@ void test_execution(){
         struct instance *is = cases[c].scc;
         for(ic = 0;ic < 4;ic++){
             if(is[ic].key.instance_id == 0) continue;
-            add_node(exec, &is[ic]);
+            add_node(&exec, &is[ic]);
         }
-        strong_connect(exec);
-        assert(exec->scc_count == 1);
-        scc *comp = &exec->sccs[0];
-        execute_scc(exec, comp);
-        sort_executed(exec->executed);
+        strong_connect(&exec);
+        assert(exec.scc_count == 1);
+        scc *comp = &exec.sccs[0];
+        execute_scc(&exec, comp);
+        sort_executed(exec.executed);
         uint64_t executed[4] = {0};
         int excd = 0;
         for(int x = 0;x < 4;x++){
-            struct instance *execd = exec->executed[x];
+            struct instance *execd = exec.executed[x];
             if((!execd) || !is_sstate(execd->status, EXECUTED)) continue;
             executed[excd] = execd->key.instance_id;
             excd++;
@@ -632,15 +634,14 @@ void test_execution(){
             }
             assert(cases[c].components[cc] == executed[cc]);
         }
-        reset_exec(exec);
+        reset_exec(&exec);
     }
     destroy_replica(&r);
     struct tarjan_node *tn;
-    kh_foreach_value(exec->vertices, tn, {
+    kh_foreach_value(exec.vertices, tn, {
             free(tn);
     })
-    kh_destroy(vertices, exec->vertices);
-    free(exec);
+    kh_destroy(vertices, exec.vertices);
 }
 
 int main(){
