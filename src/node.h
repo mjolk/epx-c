@@ -17,5 +17,6 @@ struct node {
     char nodes[N];
 };
 
+struct node* new_node(size_t, char**);
 int start(struct node*);
 void stop(struct node*);

@@ -49,3 +49,7 @@ add_test(NAME io COMMAND io_test)
 add_executable(storage_test storage.cpp)
 target_link_libraries(storage_test epx)
 add_test(NAME storage COMMAND storage_test)
+
+add_executable(node_test node.c)
+target_link_libraries(node_test epx)
+add_test(NAME node COMMAND node_test)
