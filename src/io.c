@@ -216,11 +216,11 @@ void* try_connect(void *conn){
         bundle_wait(c->ap, -1);
         reconnect = 0;
     } while(tries < reconnect);
-    destroy_node_connection(c);
-    pthread_exit(NULL);
     if(reconnect == 3){
         c->back_off *= 3;
     }
+    destroy_node_connection(c);
+    pthread_exit(NULL);
     return 0;
 }
 
