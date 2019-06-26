@@ -15,7 +15,10 @@ int is_conn_status(
     struct connection *c,
     const int t
 ){
-    return (ck_pr_load_int((int*)&c->status) == t);
+    enum connection_status s = (enum connection_status)ck_pr_load_int(
+        (int*)&c->status);
+    ck_pr_fence_load();
+    return (s == t);
 }
 
 void set_conn_status(
@@ -247,8 +250,8 @@ int node_connect(struct node_io *n, struct ipaddr *addr, int fd){
         destroy_node_connection(&n->chan_nodes[idx]);
         pthread_cancel(n->chan_nodes[idx].tid);
     }
-    n->chan_nodes[idx].n = n;
     set_conn_status(&n->chan_nodes[idx], CONNECTING);
+    n->chan_nodes[idx].n = n;
     n->chan_nodes[idx].fd = fd;
     return pthread_create(&n->chan_nodes[idx].tid, &n->tattr, try_connect,
         &n->chan_nodes[idx]);
