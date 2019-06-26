@@ -227,9 +227,9 @@ void* try_connect(void *conn){
     return 0;
 }
 
-ssize_t get_conn_idx(struct node_io *n, const struct ipaddr *addr){
+struct connection* get_conn(struct node_io *n, const struct ipaddr *addr){
     for(size_t i = 0;i < N;i++){
-        const struct ipaddr e_addr = n->nodes[i];
+        const struct ipaddr e_addr = n->chan_nodes[i].addr;
         char buf1[IPADDR_MAXSTRLEN];
         ipaddr_str(addr, buf1);
         printf("connected from ip: %s\n", buf1);
@@ -237,24 +237,23 @@ ssize_t get_conn_idx(struct node_io *n, const struct ipaddr *addr){
         ipaddr_str(&e_addr, buf2);
         printf("node connection list: %s\n", buf2);
         if(ipaddr_equal(&e_addr, addr, 1)){
-            return i;
+            return &n->chan_nodes[i];
         }
     }
-    return -1;
+    return 0;
 }
 
 int node_connect(struct node_io *n, struct ipaddr *addr, int fd){
-    ssize_t idx = get_conn_idx(n, addr);
-    if(idx < 0) return -1;
-    if(!is_conn_status(&n->chan_nodes[idx], DEAD)){
-        destroy_node_connection(&n->chan_nodes[idx]);
-        pthread_cancel(n->chan_nodes[idx].tid);
+    struct connection *c = get_conn(n, addr);
+    if(!c) return -1;
+    if(!is_conn_status(c, DEAD)){
+        destroy_node_connection(c);
+        pthread_cancel(c->tid);
     }
-    set_conn_status(&n->chan_nodes[idx], CONNECTING);
-    n->chan_nodes[idx].n = n;
-    n->chan_nodes[idx].fd = fd;
-    return pthread_create(&n->chan_nodes[idx].tid, &n->tattr, try_connect,
-        &n->chan_nodes[idx]);
+    set_conn_status(c, CONNECTING);
+    c->n = n;
+    c->fd = fd;
+    return pthread_create(&c->tid, &n->tattr, try_connect, c);
 }
 
 coroutine void node_listener(struct node_io *n){
@@ -413,7 +412,7 @@ coroutine void reader(struct connection *c){
 int connection_write(struct node_io *n, struct message *m){
     int ret = 0;
     if(is_conn_status(&n->chan_nodes[m->to], DEAD)){
-        node_connect(n, &n->nodes[m->to], 0);
+        node_connect(n, &n->chan_nodes[m->to].addr, 0);
         return 0;//hmmm
     }
     if(!chan_send_spsc(&n->chan_nodes[m->to].chan_read, m)){

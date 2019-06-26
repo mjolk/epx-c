@@ -37,6 +37,7 @@ coroutine void test_client_client(struct connection *conn){
     int rc = 0;
     rc = msend(conn->handle, m, sizeof(struct message), -1);
     assert(rc == 0);
+    free(m);
 }
 
 coroutine void test_client_update(struct connection *conn){
@@ -127,7 +128,7 @@ void test_node(){
     int b = bundle();
     struct connection client;
     struct node_io io;
-    ipaddr_local(&io.nodes[2], "127.0.0.1", NODE_PORT, 0);
+    ipaddr_local(&io.chan_nodes[2].addr, "127.0.0.1", NODE_PORT, 0);
     io.node_id = 1;
     chan_init(&io.sync.chan_step);
     chan_init(&io.io_sync.chan_io);

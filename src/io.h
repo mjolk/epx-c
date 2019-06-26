@@ -71,7 +71,6 @@ struct node_io {
     int ap_client;
     struct replica_sync sync;
     struct io_sync io_sync;
-    struct ipaddr nodes[N];
     struct connection chan_nodes[N];
     size_t quorum[N];
     struct client_index clients;
@@ -79,4 +78,5 @@ struct node_io {
 
 int start_io(struct node_io*);
 void stop_io(struct node_io*);
+int node_connect(struct node_io*, struct ipaddr*, int fd);
 #endif
