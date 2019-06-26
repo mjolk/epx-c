@@ -55,42 +55,8 @@ void destroy_instance(struct instance *i){
     free(i);
 }
 
-int is_sstate(enum state a, enum state b){
+int is_state(enum state a, enum state b){
     return (a & b) > 0;
-}
-
-int is_state(struct instance *i, enum state state_b){
-    int state_a = ck_pr_load_int((int*)&i->status);
-    ck_pr_fence_load_atomic();
-    ck_pr_and_int(&state_a, (int)state_b);
-    return state_a > 0;
-}
-
-int sub_state(struct instance *i, enum state state_b){
-    int state_a = ck_pr_load_int((int*)&i->status);
-    ck_pr_fence_load_atomic();
-    ck_pr_sub_int(&state_a, (int)state_b);
-    return state_a;
-}
-
-int lt_eq_state(struct instance *i, enum state state_b){
-    return sub_state(i, state_b) >= 0;
-}
-
-int lt_state(struct instance *i, enum state state_b){
-    return sub_state(i, state_b) > 0;
-}
-
-int st_state(struct instance *i, enum state state_b){
-    return sub_state(i, state_b) < 0;
-}
-
-void set_state(struct instance *i, enum state s){
-    ck_pr_fas_int((int*)&i->status, (int)s);
-}
-
-enum state get_state(struct instance *i){
-    return (enum state)ck_pr_load_int((int*)&i->status);
 }
 
 uint8_t unique_ballot(uint8_t ballot, size_t replica_id){
@@ -226,7 +192,7 @@ void timer_reset(struct timer *t, int time_out){
 }
 
 int is_committed(struct instance *i){
-    return lt_eq_state(i, COMMITTED);
+    return (i->status >= COMMITTED);
 }
 
 int has_uncommitted_deps(struct instance *i){

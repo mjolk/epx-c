@@ -56,8 +56,8 @@ int main(){
     assert(equal_deps(tdeps, tdeps2) == 1);
     tdeps2[0].id.instance_id = 500;
     assert(equal_deps(tdeps, tdeps2) == 0);
-    assert(is_sstate(PRE_ACCEPTED, (PRE_ACCEPTED | PRE_ACCEPTED_EQ)) == 1);
-    assert(is_sstate(PREPARING, (PRE_ACCEPTED | PRE_ACCEPTED_EQ)) == 0);
+    assert(is_state(PRE_ACCEPTED, (PRE_ACCEPTED | PRE_ACCEPTED_EQ)) == 1);
+    assert(is_state(PREPARING, (PRE_ACCEPTED | PRE_ACCEPTED_EQ)) == 0);
     tdeps[MAX_DEPS-1].id.instance_id = 0;
     struct instance_id nid = {
         .instance_id = 1009,

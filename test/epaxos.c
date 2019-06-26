@@ -287,7 +287,7 @@ void recovery0(){
     rc = chan_recv_spsc(&r1.out->chan_io, &rep);
     assert(rc >= 0);
     assert(rep->ballot != 0);
-    assert(is_sstate(ri0->lt->recovery_status, PREPARING));
+    assert(is_state(ri0->lt->recovery_status, PREPARING));
     assert(step(&r2, rep) == 0);
     rc = chan_recv_spsc(&r2.out->chan_io, &rep);
     assert(rc >= 0);

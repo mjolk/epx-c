@@ -194,7 +194,7 @@ void execute_scc(struct executor *e, scc *comp){
             //another thread will never set status to executed
             //so we don't have to synchronize to get a reliable read?
             struct instance *i = find_instance(e->r, &dep.id);
-            if((!i) || (!is_state(i, EXECUTED))) return;
+            if((!i) || (!is_state(i->status, EXECUTED))) return;
         }
     }
     sort_scc(comp);
@@ -205,7 +205,7 @@ void execute_scc(struct executor *e, scc *comp){
         k = kh_get(vertices, e->vertices, dh_key(&executed->key));
         if(k != kh_end(e->vertices)) kh_del(vertices, e->vertices, k);
         free(comp->nodes[i]);
-        set_state(executed, EXECUTED);
+        executed->status = EXECUTED;
     }
 }
 

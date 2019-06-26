@@ -622,7 +622,7 @@ void test_execution(){
         int excd = 0;
         for(int x = 0;x < 4;x++){
             struct instance *execd = exec.executed[x];
-            if((!execd) || !is_sstate(execd->status, EXECUTED)) continue;
+            if((!execd) || !is_state(execd->status, EXECUTED)) continue;
             executed[excd] = execd->key.instance_id;
             excd++;
         }
