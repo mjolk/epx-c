@@ -5,6 +5,7 @@
  * Date   : do 17 jan 2019 00:47
  */
 
+#include <unistd.h>
 #include "node.h"
 #include <signal.h>
 
@@ -13,6 +14,7 @@ struct node* n;
 void handler(int signo, siginfo_t *info, void *extra) {
     stop(n);
 }
+
 
 int main(int argc, char* argv[]){
     sigset_t mask;
@@ -25,7 +27,9 @@ int main(int argc, char* argv[]){
     sact.sa_sigaction = handler;
     //TODO configuration file/cli arguments
     char *nodes[N] = {0};
-    n = new_node(1, nodes);
+    size_t join[N] = {0};
+    ssize_t id = configure(argc, argv, nodes, join);
+    n = new_node(id, nodes, join);
     if(start(n) != 0) return -1;
     sleep(1);
     pthread_sigmask(SIG_UNBLOCK, &mask, NULL);

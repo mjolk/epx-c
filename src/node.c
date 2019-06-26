@@ -8,6 +8,37 @@
 #include "node.h"
 #include "execute.h"
 
+ssize_t configure(int cnt, char **opts, char **nodes, size_t *join){
+    ssize_t id = 0;
+    int c = 0;
+    int jc = 0;
+    char nds[60];
+    char *end;
+    char *delim = ",";
+    while((c = getopt(cnt, opts, "i:n:j::")) != -1){
+        switch(c){
+            case 'i':
+                id = strtol(optarg, &end, 10);
+            break;
+            case 'n':
+                strcpy(nds, optarg);
+                for(int i = 0;i < N;i++){
+                    if(i == 0){ 
+                        strcpy(nodes[i], strtok(nds, delim));
+                        continue; 
+                    }
+                    strcpy(nodes[i], strtok(NULL, delim));
+                }
+            break;
+            case 'j':
+                join[jc] = strtol(optarg, &end, 10);
+                jc++;
+            break;
+        }
+    }
+    return id;
+}
+
 void init_io_sync(struct io_sync *io){
     chan_init(&io->chan_eo);
     chan_init(&io->chan_exec);
@@ -20,7 +51,7 @@ void init_replica_sync(struct replica_sync *rsync){
     chan_init(&rsync->chan_step);
 }
 
-struct node* new_node(size_t id, char **nodes){
+struct node* new_node(size_t id, char **nodes, size_t *join){
     struct node *n = (struct node*)calloc(1, sizeof(struct node));
     if(!n) return 0;
     n->io.node_id = id;
@@ -33,11 +64,15 @@ struct node* new_node(size_t id, char **nodes){
     for(size_t i = 0;i < N;i++){
         if(i == id){
             ipaddr_local(&addr, "127.0.0.1", NODE_PORT, 0);
-            n->io.nodes[i] = addr;
+            n->io.chan_nodes[i].addr = addr;
             continue;
         }
         ipaddr_remote(&addr, nodes[i], NODE_PORT, 0, -1);
-        n->io.nodes[i] = addr;
+        n->io.chan_nodes[i].addr = addr;
+    }
+    for(size_t j = 0;j < N;j++){
+        if(join[j] == 0) continue;
+        node_connect(&n->io, &n->io.chan_nodes[join[j]].addr, 0);
     }
     return n;
 }
