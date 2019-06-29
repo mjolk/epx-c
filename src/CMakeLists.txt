@@ -28,46 +28,86 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
-# TODO this is a debug version, add optimized version
+#TODO add optimized build of libdill
+find_library(
+    dill
+    NAMES libdill.a
+)
 add_library(imp_dill STATIC IMPORTED)
-set_property(TARGET imp_dill PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/libdill.a)
+set_target_properties(imp_dill PROPERTIES
+    IMPORTED_LOCATION ${dill})
 
+find_library(
+    flatcc
+    NAMES libflatccrt.a
+)
 add_library(flatccrt STATIC IMPORTED)
-set_property(TARGET flatccrt PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/libflatccrt.a)
+set_target_properties(flatccrt PROPERTIES
+    IMPORTED_LOCATION ${flatcc})
 
+find_library(
+    flatcc_debug
+    NAMES libflatccrt_d.a
+)
 add_library(flatccrt_debug STATIC IMPORTED)
-set_property(TARGET flatccrt_debug PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/libflatccrt_d.a)
+set_target_properties(flatccrt_debug PROPERTIES
+    IMPORTED_LOCATION ${flatcc_debug})
 
+find_library(
+    rocks
+    NAMES librocksdb.a
+)
 add_library(rocksdb STATIC IMPORTED)
-set_property(TARGET rocksdb PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/librocksdb.a)
+set_target_properties(rocksdb PROPERTIES
+    IMPORTED_LOCATION ${rocks})
 
+find_library(
+    libz
+    NAMES libz.a
+)
 add_library(zlib STATIC IMPORTED)
-set_property(TARGET zlib PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/libz.a)
+set_target_properties(zlib PROPERTIES
+    IMPORTED_LOCATION ${libz})
 
+find_library(
+    bz2
+    NAMES libbz2.a
+)
 add_library(bzip2 STATIC IMPORTED)
-set_property(TARGET bzip2 PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/libbz2.a)
+set_target_properties(bzip2 PROPERTIES
+    IMPORTED_LOCATION ${bz2})
 
+find_library(
+    snap
+    NAMES libsnappy.a
+)
 add_library(snappy STATIC IMPORTED)
-set_property(TARGET snappy PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/libsnappy.a)
+set_target_properties(snappy PROPERTIES
+    IMPORTED_LOCATION ${snap})
 
+find_library(
+    lz4p
+    NAMES liblz4.a
+)
 add_library(lz4 STATIC IMPORTED)
-set_property(TARGET lz4 PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/liblz4.a)
+set_target_properties(lz4 PROPERTIES
+    IMPORTED_LOCATION ${lz4p})
 
+find_library(
+    zstd
+    NAMES libzstd.a
+)
 add_library(zstandard STATIC IMPORTED)
-set_property(TARGET zstandard PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/libzstd.a)
+set_target_properties(zstandard PROPERTIES
+    IMPORTED_LOCATION ${zstd})
 
+find_library(
+    jem
+    NAMES libjemalloc.a
+)
 add_library(jemalloc STATIC IMPORTED)
-set_property(TARGET jemalloc PROPERTY
-    IMPORTED_LOCATION /usr/local/lib/libjemalloc.a)
+set_target_properties(jemalloc PROPERTIES
+    IMPORTED_LOCATION ${jem})
 
 add_library(epx
     instance_id.c

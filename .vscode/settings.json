@@ -1,7 +1,4 @@
 {
     "cmake.configureOnOpen": true,
-    "cmake.generator": "Ninja",
-    "files.associations": {
-        "c.h": "c"
-    }
+    "cmake.generator": "Ninja"
 }
