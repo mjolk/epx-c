@@ -114,7 +114,6 @@ find_path(
     NAMES timeout.c timeout-bitops.c
     HINTS /usr/local/include/timeout
 )
-message("timeout path ${tpath}")
 add_library(timeout
     ${tpath}/timeout-bitops.c
     ${tpath}/timeout.c
