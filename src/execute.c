@@ -63,7 +63,7 @@ SLL_HEAD(stack, tarjan_node);
 KHASH_MAP_INIT_INT64(vertices, struct tarjan_node*);
 
 struct executor {
-    struct replica *r;
+    struct io_sync *out;
     khash_t(vertices) *vertices;
     int scc_count;
     struct stack stack;
@@ -194,7 +194,7 @@ void execute_scc(struct executor *e, scc *comp){
             }
             //another thread will never set status to executed
             //so we don't have to synchronize to get a reliable read?
-            struct instance *i = find_instance(e->r, &dep.id);
+            struct instance *i = find_instance(v->i->r, &dep.id);
             if((!i) || (!is_state(i->status, EXECUTED))) return;
         }
     }
@@ -218,15 +218,15 @@ void execute(struct executor *e){
     reset_exec(e);
 }
 
-void* run_execute(void* rep){
-    struct replica *r = (struct replica*)rep;
+void* run_execute(void* nio){
+    struct node_io *io = (struct node_io*)nio;
     struct executor e;
     reset_exec(&e);
     new_executor(&e);
-    e.r = r;
+    e.out = &io->io_sync;
     struct instance *i = 0;
-    while(e.r->running){
-        if(!chan_recv_spsc(&e.r->out->chan_exec, &i)){
+    while(io->running){
+        if(!chan_recv_spsc(&e.out->chan_exec, &i)){
             continue;
         }
         if(i){

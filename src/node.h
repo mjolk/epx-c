@@ -11,7 +11,6 @@
 
 struct node {
     struct node_io io;
-    struct replica r;
     pthread_t executor;
     pthread_t epaxos;
     char nodes[N];

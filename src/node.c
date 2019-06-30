@@ -56,11 +56,8 @@ struct node* new_node(size_t id, char **nodes, size_t *join){
     struct node *n = (struct node*)calloc(1, sizeof(struct node));
     if(!n) return 0;
     n->io.node_id = id;
-    n->r.id = id;
     init_replica_sync(&n->io.sync);
     init_io_sync(&n->io.io_sync);
-    n->r.out = &n->io.io_sync;
-    n->r.in = &n->io.sync;
     struct ipaddr addr;
     for(size_t i = 0;i < N;i++){
         if(i == id){
@@ -82,8 +79,8 @@ int start(struct node *n){
     pthread_attr_t detached;
     pthread_attr_init(&detached);
     pthread_attr_setdetachstate(&detached, PTHREAD_CREATE_DETACHED);
-    if(pthread_create(&n->epaxos, NULL, run, &n->r) != 0) return -1;
-    if(pthread_create(&n->executor, &detached, run_execute, &n->r) != 0) goto error;
+    if(pthread_create(&n->epaxos, NULL, run, &n->io) != 0) return -1;
+    if(pthread_create(&n->executor, &detached, run_execute, &n->io) != 0) goto error;
     if(start_io(&n->io) != 0) goto error;
     if(pthread_join(n->epaxos, NULL) != 0) goto error;
     return 0;

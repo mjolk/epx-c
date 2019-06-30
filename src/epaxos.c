@@ -574,30 +574,34 @@ int propose(struct replica *r, struct message *m){
     return 0;
 }
 
-void* run(void* rep){
-    struct replica *r = (struct replica*)rep;
-    pthread_cleanup_push(destroy_replica, r);
-    if(new_replica(r) != 0) return 0;
+void* run(void* nio){
+    struct node_io *io = (struct node_io*)nio;
+    struct replica r;
+    r.id = io->node_id;
+    r.out = &io->io_sync;
+    r.in = &io->sync;
+    pthread_cleanup_push(destroy_replica, &r);
+    if(new_replica(&r) != 0) return 0;
     int rc = 0;
     int err = 0;
     struct message *m;
     struct chclause cls[] = {
-        {CHRECV, r->chan_tick[1], &m, MSG_SIZE},/** advance time **/
-        {CHRECV, r->chan_ii[1], &m, MSG_SIZE},/** churn **/
-        {CHRECV, r->chan_propose[1], &m, MSG_SIZE} /** new io **/
+        {CHRECV, r.chan_tick[1], &m, MSG_SIZE},/** advance time **/
+        {CHRECV, r.chan_ii[1], &m, MSG_SIZE},/** churn **/
+        {CHRECV, r.chan_propose[1], &m, MSG_SIZE} /** new io **/
     };
-    if(run_replica(r) != 0) return 0;
-    while(r->running && rc >= 0){
+    if(run_replica(&r) != 0) return 0;
+    while(io->running && rc >= 0){
         rc = choose(cls, 3, -1);
         switch(rc){
             case 0:
-                tick(r);
+                tick(&r);
                 break;
             case 1:
-                err = step(r, m);
+                err = step(&r, m);
                 break;
             case 2:
-                err = propose(r, m);
+                err = propose(&r, m);
                 break;
         }
         if(err < 0){
@@ -606,6 +610,6 @@ void* run(void* rep){
             return 0;
         }
     }
-    pthread_cleanup_pop(0);
+    pthread_cleanup_pop(1);
     return 0;
 }

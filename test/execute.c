@@ -602,7 +602,6 @@ void test_execution(){
     struct executor exec;
     reset_exec(&exec);
     new_executor(&exec);
-    exec.r = &r;
     int tests = 6;
     int c;
     int ic;
