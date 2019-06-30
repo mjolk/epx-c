@@ -7,7 +7,7 @@ Egalitarian paxos will be better for embedding in mobile devices since it does n
 and should better cope with fast changing quorum configurations. (That's the idea anyway ¯\\_(ツ)_/¯)
 
 #### to compile you need:
-all dependencies need to be symlinked/installed/copied to /usr/local/{lib, include}
+all dependencies need to be symlinked/installed/copied to /usr/local/{lib, include} (also timeout)
 - c11 & c++17 compiler (clang/gcc)
 - [cmake](https://cmake.org/)
 - [ninja](https://ninja-build.org/) optional
@@ -17,5 +17,6 @@ all dependencies need to be symlinked/installed/copied to /usr/local/{lib, inclu
 - [llrb](https://github.com/mjolk/llrb-interval.git)
 - [rocksdb](https://github.com/facebook/rocksdb)
 - [klib](https://github.com/attractivechaos/klib)
+- [timeout](https://github.com/wahern/timeout)
    
 
