@@ -8,8 +8,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <stdio.h>
-#include <assert.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cassert>
 
 int main(){
     struct store ns;

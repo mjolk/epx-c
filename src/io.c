@@ -13,7 +13,7 @@
 
 int is_conn_status(
     struct connection *c,
-    const int t
+    const enum connection_status t
 ){
     enum connection_status s = (enum connection_status)ck_pr_load_int(
         (int*)&c->status);
@@ -22,7 +22,7 @@ int is_conn_status(
 }
 
 void set_conn_status(
-    struct connection *c, 
+    struct connection *c,
     const int t
 ){
     ck_pr_fas_int((int*)&c->status, t);
@@ -542,7 +542,9 @@ coroutine void eo_reader(struct node_io *n){
 }
 
 void destroy_rsp(struct registered_span *rsp){
-    free(rsp);
+    if(rsp){
+        free(rsp);
+    }
 }
 
 void* client_handler(void* nio){
@@ -550,7 +552,6 @@ void* client_handler(void* nio){
     n->ap_client = bundle();
     if(bundle_go(n->ap_client, client_listener(n)) != 0) goto error;
     if(bundle_go(n->ap_client, eo_reader(n)) != 0) goto error;
-    LLRB_INIT(&n->clients);
     bundle_wait(n->ap_client, -1);
     hclose(n->ap_client);
     hclose(n->client_listener);
@@ -561,6 +562,7 @@ error:
 
 int start_io(struct node_io *n){
     n->running = 1;
+    LLRB_INIT(&n->clients);
     n->ap = bundle();
     if(n->ap < 0) goto error;
     if(set_pthread_attr(n) != 0) goto error;

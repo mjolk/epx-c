@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-int chan_init(chan *c){
+int chan_init_sem(chan *c){
     ck_ring_init(&c->ring, CAPACITY);
 #ifdef __APPLE__
     c->c_sem = dispatch_semaphore_create(0);
@@ -23,6 +23,11 @@ int chan_init(chan *c){
 init_error:
     perror("init sync error");
     return -1;
+}
+
+int chan_init(chan *c){
+    ck_ring_init(&c->ring, CAPACITY);
+    return 0;
 }
 
 int chan_send_spmc(chan *c, void *data){

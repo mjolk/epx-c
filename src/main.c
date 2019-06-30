@@ -25,6 +25,8 @@ int main(int argc, char* argv[]){
     struct sigaction sact;
     sact.sa_flags = SA_SIGINFO; 
     sact.sa_sigaction = handler;
+	sigaction(SIGTERM, &sact, NULL);
+	sigaction(SIGINT, &sact, NULL);
     //TODO configuration file/cli arguments
     char *nodes[N] = {0};
     size_t join[N] = {0};

@@ -23,14 +23,15 @@ ssize_t configure(int cnt, char **opts, char **nodes, size_t *join){
             case 'n':
                 strcpy(nds, optarg);
                 for(int i = 0;i < N;i++){
-                    if(i == 0){ 
+                    if(i == 0){
                         strcpy(nodes[i], strtok(nds, delim));
-                        continue; 
+                        continue;
                     }
                     strcpy(nodes[i], strtok(NULL, delim));
                 }
             break;
             case 'j':
+                if(!optarg) break;
                 join[jc] = strtol(optarg, &end, 10);
                 jc++;
             break;

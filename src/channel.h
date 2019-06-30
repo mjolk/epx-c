@@ -23,11 +23,12 @@ typedef struct chan {
     dispatch_semaphore_t s_sem;
 #else
     sem_t c_sem;
-    sema_t s_sem;
+    sem_t s_sem;
 #endif
 } chan;
 
 int chan_init(chan*);
+int chan_init_sem(chan*);
 
 int chan_send_spmc(chan*, void*);
 int chan_recv_spmc(chan*, void*);

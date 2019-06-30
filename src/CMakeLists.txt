@@ -123,7 +123,6 @@ add_library(epx
     execute.c
     io.c
     node.c
-    main.c
     )
 add_dependencies(epx fbs_built)
 
@@ -132,13 +131,14 @@ target_link_libraries(epx
     Threads::Threads
     debug flatccrt_debug
     optimized flatccrt
+    rocksdb
     zlib
     bzip2
     snappy
     lz4
     zstandard
     jemalloc
-    rocksdb
+    -ldl
     )
 
 add_executable(epx_service main.c)

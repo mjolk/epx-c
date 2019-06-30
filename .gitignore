@@ -5,3 +5,4 @@ build
 .tags
 *.vim
 **/fbs/*.h
+*.json

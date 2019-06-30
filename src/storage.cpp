@@ -10,9 +10,9 @@ extern "C" {
 #endif
 #include <unistd.h>
 #include "../include/epx.h"
-#include <string.h>
+#include <cstring>
 #include "storage.h"
-#include <stdio.h>
+#include <cstdio>
 
 struct store {
     rocksdb_t *db;

@@ -8,7 +8,7 @@
 #include "epaxos.h"
 #include <stdio.h>
 
-struct instance* find_conflict(struct replica *r, struct instance *i, 
+struct instance* find_conflict(struct replica *r, struct instance *i,
     struct command *c, uint64_t seq, struct dependency *deps){
     if(i->command){
         if(i->status >= ACCEPTED){
@@ -21,7 +21,7 @@ struct instance* find_conflict(struct replica *r, struct instance *i,
 }
 
 struct leader_tracker *new_tracker(){
-    struct leader_tracker *lt = (struct leader_tracker*)calloc(1, 
+    struct leader_tracker *lt = (struct leader_tracker*)calloc(1,
         sizeof(struct leader_tracker));
     if(!lt){ errno = ENOMEM; return 0;}
     lt->ri.status = NONE;

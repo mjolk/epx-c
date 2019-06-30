@@ -97,6 +97,7 @@ coroutine void check_step(struct node_io *io){
 void test_create(){
     struct node_io io;
     assert(start_io(&io) == 0);
+    //sleep(1);
     stop_io(&io);
 }
 
@@ -122,6 +123,7 @@ void test_client(){
     assert(strcmp(frsp->start_key, "ab") == 0);
     assert(frsp->clients[0].chan > 0);
     stop_io(&io);
+    hclose(b);
 }
 
 void test_node(){
@@ -143,6 +145,7 @@ void test_node(){
     assert(chan_send_spsc(&io.io_sync.chan_io, m));
     bundle_wait(b, -1);
     stop_io(&io);
+    hclose(b);
 }
 
 int main(){

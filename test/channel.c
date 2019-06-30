@@ -6,6 +6,7 @@
  */
 
 #include "../src/channel.h"
+#include "../include/epx.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -16,7 +17,7 @@ void *receivemsg(void*);
 int main(){
 
     chan *channel = (struct chan*)malloc(sizeof(struct chan));
-    chan_init(channel);
+    chan_init_sem(channel);
     pthread_t sending[3];
     pthread_t receiving[1];
 
