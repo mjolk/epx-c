@@ -6,10 +6,11 @@
  */
 #ifndef EPX_INSTANCE
 #define EPX_INSTANCE
-#include "llrb-interval/slist.h"
+#include "timeout/timeout.h"
 #include "message.h"
 
 #define DEPSIZE sizeof(struct dependency)*MAX_DEPS
+#define TIMEOUT_DISABLE_RELATIVE_ACCESS
 
 struct replica;
 struct instance_index;
@@ -19,17 +20,8 @@ struct seq_deps_probe{
     struct dependency deps[MAX_DEPS];
 };
 
-struct timer {
-    SIMPLEQ_ENTRY(timer) next;
-    int elapsed;
-    int time_out;
-    int paused;
-    struct instance* instance;
-    void (*on)(struct replica*, struct timer*);
-};
-
 struct instance {
-    struct timer ticker;
+    struct timeout timer;
     struct dependency deps[MAX_DEPS];
     uint8_t deps_updated;
     struct instance_id key;
@@ -39,6 +31,7 @@ struct instance {
     uint64_t seq;
     LLRB_ENTRY(instance) entry;
     struct leader_tracker *lt;
+    struct replica *r;
 };
 
 struct recovery_instance {
@@ -78,9 +71,6 @@ int is_initial_ballot(uint8_t ballot);
 int update_deps(struct dependency*, struct dependency*);
 int equal_deps(struct dependency*, struct dependency*);
 int add_dep(struct dependency*, struct instance*);
-void timer_cancel(struct timer*);
-void timer_set(struct timer*, int);
-void timer_reset(struct timer*, int);
 uint8_t larger_ballot(uint8_t, size_t);
 size_t replica_from_ballot(uint8_t);
 uint8_t unique_ballot(uint8_t, size_t);

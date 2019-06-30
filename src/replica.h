@@ -15,7 +15,7 @@
 KHASH_MAP_INIT_INT64(deferred, size_t)
 
 struct replica {
-    struct timer ticker;
+    struct timeout timer;
     int chan_tick[2];
     int chan_propose[2] ;
     int chan_ii[2];
@@ -25,7 +25,7 @@ struct replica {
     uint8_t epoch;
     size_t id;
     struct instance_index index[N];
-    struct tickers timers;
+    struct timeouts *timers;
     khash_t(deferred) *dh;
     int ap;
     int frequency;
@@ -38,8 +38,7 @@ uint64_t sd_for_command(struct replica*, struct command*,
 struct instance* pac_conflict(struct replica*, struct instance*,
         struct command *c, uint64_t seq, struct dependency *deps);
 uint64_t max_local(struct replica*);
-void instance_timer(struct replica*, struct instance*, int time_out);
-void replica_timer(struct replica*, int time_out);
+void instance_timer(struct instance*, int time_out);
 int register_instance(struct replica*, struct instance*);
 int new_replica(struct replica*);
 void tick(struct replica*);

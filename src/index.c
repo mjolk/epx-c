@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "index.h"
+#include "llrb-interval/slist.h"
 #include "llrb-interval/llrb-interval.h"
 
 int spcmp(struct span *sp1, struct span *sp2){
@@ -114,7 +115,7 @@ uint64_t seq_deps_for_command(
 
 void barrier_dep(struct instance_index *index, struct dependency *deps) {
     add_dep(
-        deps, 
+        deps,
         LLRB_PREV(instance_index, index, LLRB_MAX(instance_index, index))
     );
 }

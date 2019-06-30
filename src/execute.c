@@ -6,6 +6,7 @@
  */
 
 #include <errno.h>
+#include "llrb-interval/slist.h"
 #include "execute.h"
 #include "storage.h"
 

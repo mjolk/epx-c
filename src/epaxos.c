@@ -34,21 +34,20 @@ uint64_t dh_key(struct instance_id *id){
 }
 
 void cancel_timeout(struct instance *i){
-    i->ticker.on = 0;
-    timer_cancel(&i->ticker);
+    timeouts_del(i->r->timers, &i->timer);
 }
 
-void fast_path_timeout(struct replica*, struct timer*);
-void slow_path_timeout(struct replica*, struct timer*);
-void checkpoint_timeout(struct replica*, struct timer*);
-void init_timeout(struct instance *i){
-    timer_set(&i->ticker, 2);
-    i->ticker.on = slow_path_timeout;
-}
+void fast_path_timeout(struct instance*);
+void slow_path_timeout(struct instance*);
 
 void init_fp_timeout(struct instance *i){
-    timer_set(&i->ticker, 2);
-    i->ticker.on = fast_path_timeout;
+    timeout_setcb(&i->timer, fast_path_timeout, i);
+    timeouts_add(i->r->timers, &i->timer, 20);
+}
+
+void init_timeout(struct instance *i){
+    timeout_setcb(&i->timer, slow_path_timeout, i);
+    timeouts_add(i->r->timers, &i->timer, 20);
 }
 
 static inline void do_commit(struct replica *r, struct instance *i,
@@ -87,11 +86,6 @@ void checkpoint(struct replica *r, struct message *m){
     send_io(r, m);
 }
 
-void checkpoint_timeout(struct replica *r, struct timer *t){
-    checkpoint(r, 0);
-    timer_set(t, r->checkpoint<<N);
-}
-
 void recover(struct replica *r, struct instance *i, struct message *m) {
     if(!i->lt){
         i->lt = new_tracker();
@@ -120,6 +114,7 @@ void recover(struct replica *r, struct instance *i, struct message *m) {
 
 void phase1(struct replica *r, struct instance *i, struct message *m){
     instance_reset(i);
+    timeouts_del(r->timers, &i->timer);
     //TODO add updated field somewhere, use lt.. should remove this probe struct
     struct seq_deps_probe p = {
         .updated = 0,
@@ -538,18 +533,18 @@ void progress(struct replica *r, struct instance *i, struct message *m){
     }
 }
 
-void slow_path_timeout(struct replica *r, struct timer *t) {
+void slow_path_timeout(struct instance *i) {
     //struct message *nm = message_from_instance(t->instance);
     struct message *nm = (struct message*)malloc(sizeof(struct message));
     nm->type = PREPARE;
-    recover(r, t->instance, nm);
+    recover(i->r, i, nm);
 }
 
-void fast_path_timeout(struct replica *r, struct timer *t) {
-    struct message *m = message_from_instance(t->instance);
-    init_timeout(t->instance);
+void fast_path_timeout(struct instance *i) {
+    struct message *m = message_from_instance(i);
+    init_timeout(i);
     m->type = ACCEPT;
-    send_io(r, m);
+    send_io(i->r, m);
 }
 
 int step(struct replica *r, struct message *m) {
@@ -560,7 +555,7 @@ int step(struct replica *r, struct message *m) {
         if(!i) return -1;
         i->key = m->id;
         if(register_instance(r, i) < 0) return -1;
-        i->ticker.on = slow_path_timeout;
+        init_timeout(i);
     }
     progress(r, i, m);
     return 0;
@@ -585,11 +580,6 @@ void* run(void* rep){
     if(new_replica(r) != 0) return 0;
     int rc = 0;
     int err = 0;
-    if(r->checkpoint){
-        r->ticker.time_out = r->checkpoint<<r->id;
-        r->ticker.elapsed = 0;
-        r->ticker.on = checkpoint_timeout;
-    }
     struct message *m;
     struct chclause cls[] = {
         {CHRECV, r->chan_tick[1], &m, MSG_SIZE},/** advance time **/

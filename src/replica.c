@@ -50,13 +50,24 @@ int send_exec(struct replica *r, struct instance *i){
     return chan_send_spsc(&r->out->chan_exec, i);
 }
 
+void clear(struct replica *r){
+    for(int i = 0;i < N;i++){
+       clear_index(&r->index[i]);
+    }
+}
+
 int new_replica(struct replica *r){
     r->running = 0;
+    int err;
+    r->timers = timeouts_open(TIMEOUT_mHZ, &err);
+    timeout_init(&r->timer, 0);
+    r->timer.interval = r->frequency<<N;
+    timeout_setcb(&r->timer, clear, r);
+    if(err) goto error;
     if(chmake(r->chan_tick) != 0) goto error;
     if(chmake(r->chan_propose) !=0) goto error;
     if(chmake(r->chan_ii) !=0) goto error;
     r->dh = kh_init(deferred);
-    SIMPLEQ_INIT(&r->timers);
     for(int i = 0;i < N;i++){
         LLRB_INIT(&r->index[i]);
     }
@@ -67,20 +78,13 @@ error:
     return -1;
 }
 
-void replica_timer(struct replica *r, int time_out){
-    r->ticker.time_out = time_out;
-    r->ticker.elapsed = 0;
-    r->ticker.paused = 0;
-    SIMPLEQ_INSERT_TAIL(&r->timers, &r->ticker, next);
-}
-
 int run_replica(struct replica *r){
     int rc = 0;
     r->running = 1;
-    replica_timer(r, 2);
     if(bundle_go(r->ap, tcl(r)) < 0) goto on_error;
     if(bundle_go(r->ap, recv_propose(r)) < 0) goto on_error;
     if(bundle_go(r->ap, recv_step(r)) < 0) goto on_error;
+    timeouts_add(r->timers, &r->timer, r->frequency<<N);
     return rc;
 on_error:
     r->running = 0;
@@ -89,6 +93,7 @@ on_error:
 
 void destroy_replica(void* rep){
     struct replica *r = (struct replica*)rep;
+    timeouts_close(r->timers);
     r->running = 0;
     hclose(r->ap);
     hclose(r->chan_tick[0]);
@@ -103,52 +108,16 @@ void destroy_replica(void* rep){
     }
 }
 
-int trigger(struct timer *t){
-    return (t->elapsed >= t->time_out);
-}
-
 void tick(struct replica *r) {
-    struct timer *c, *prev, *nxt;
-    c = 0;
-    prev = 0;
-    nxt = SIMPLEQ_FIRST(&r->timers);
-    while(nxt){
-        if(!nxt->paused)nxt->elapsed++;
-        c = nxt;
-        nxt = SIMPLEQ_NEXT(nxt, next);
-        if(trigger(c) && c->on) {
-            c->on(r, c);
-        }
-        //recheck status since timer cfg might have changed
-        if(trigger(c)) {
-            if(prev && (nxt || prev != c)){
-                SIMPLEQ_REMOVE_AFTER(&r->timers, prev, next);
-            } else {
-                SIMPLEQ_REMOVE_HEAD(&r->timers, next);
-                prev = 0;
-            }
-        } else {
-            prev = c;
-        }
-    }
-}
-
-void clear(struct replica *r){
-    for(int i = 0;i < N;i++){
-       clear_index(&r->index[i]);
-    }
-    timer_set(&r->ticker, r->checkpoint<<N);
-}
-
-void instance_timer(struct replica *r, struct instance *i, int time_out) {
-    i->ticker.time_out = time_out;
-    i->ticker.elapsed = 0;
-    i->ticker.instance = i;
-    i->ticker.paused = 0;
-    SIMPLEQ_INSERT_TAIL(&r->timers, &i->ticker, next);
+   timeouts_step(r->timers, 1);
+   struct timeout *t;
+   while (NULL != (t = timeouts_get(r->timers))) {
+       t->callback.fn(t->callback.arg);
+   }
 }
 
 int register_instance(struct replica *r, struct instance *i) {
+    i->r = r;
     struct instance *rej = LLRB_INSERT(instance_index,
             &r->index[i->key.replica_id], i);
     if(rej){
@@ -157,7 +126,6 @@ int register_instance(struct replica *r, struct instance *i) {
         destroy_instance(i);
         return -1;
     }
-    instance_timer(r, i, 2);
     return 0;
 }
 

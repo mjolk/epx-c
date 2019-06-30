@@ -42,6 +42,7 @@ struct instance *new_instance(){
     i->status = NONE;
     i->deps_updated = 0;
     i->lt = 0;
+    timeout_init(&i->timer, 0);
     return i;
 }
 
@@ -176,19 +177,6 @@ int add_dep(struct dependency *deps, struct instance *i){
     struct dependency dep = {.id = i->key,
         .committed = is_committed(i)};
     return update_deps(deps, &dep);
-}
-
-void timer_cancel(struct timer *t){
-    t->elapsed = t->time_out;
-}
-
-void timer_set(struct timer *t ,int time_out){
-    t->time_out += t->elapsed;
-}
-
-void timer_reset(struct timer *t, int time_out){
-    t->time_out = time_out;
-    t->elapsed = 0;
 }
 
 int is_committed(struct instance *i){

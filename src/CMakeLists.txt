@@ -1,6 +1,6 @@
 #debug flags
 set(CMAKE_C_FLAGS_DEBUG
-    "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -Werror -Wno-long-long -Wno-variadic-macros -fexceptions -DUSE_CLANG_COMPLETER")
+    "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -Werror -Wno-long-long -Wno-variadic-macros -fexceptions")
 
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
     message("debug mode")
@@ -109,6 +109,17 @@ add_library(jemalloc STATIC IMPORTED)
 set_target_properties(jemalloc PROPERTIES
     IMPORTED_LOCATION ${jem})
 
+find_path(
+    tpath
+    NAMES timeout.c timeout-bitops.c
+    HINTS /usr/local/include/timeout
+)
+message("timeout path ${tpath}")
+add_library(timeout
+    ${tpath}/timeout-bitops.c
+    ${tpath}/timeout.c
+)
+
 add_library(epx
     instance_id.c
     command.c
@@ -127,6 +138,7 @@ add_library(epx
 add_dependencies(epx fbs_built)
 
 target_link_libraries(epx
+    timeout
     imp_dill
     Threads::Threads
     debug flatccrt_debug
