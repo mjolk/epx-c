@@ -56,8 +56,6 @@ struct leader_tracker {
     uint8_t quorum[N];
 };
 
-//int intcmp(struct instance*, struct instance*);
-SIMPLEQ_HEAD(tickers, timer);
 LLRB_HEAD(instance_index, instance);
 LLRB_PROTOTYPE(instance_index, instance, entry, intcmp);
 
