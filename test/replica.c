@@ -7,6 +7,13 @@
 
 #include "../src/replica.h"
 
+int triggered[5] = {0};
+
+void timeout_callback(void *arg){
+    int id = *(int*) arg;
+    triggered[id] = 1;
+}
+
 int main(){
     struct io_sync s;
     struct replica_sync rs;
@@ -22,7 +29,10 @@ int main(){
             .instance_id = 1
         }
     };
-    run_replica(&r);
-    destroy_replica(&r);
+    timeout_init(&i.timer, 0);
+    timeout_setcb(&i.timer, timeout_callback, 0);
+    timeouts_add(r.timers, &i.timer, 20);
+    //run_replica(&r);
+    //destroy_replica(&r);
     return 0;
 }
