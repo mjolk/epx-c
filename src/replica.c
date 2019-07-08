@@ -58,7 +58,7 @@ void clear(struct replica *r){
 
 int new_replica(struct replica *r){
     r->running = 0;
-    int err;
+    int err = 0;
     r->timers = timeouts_open(TIMEOUT_mHZ, &err);
     timeout_init(&r->timer, 0);
     r->timer.interval = r->frequency<<N;
