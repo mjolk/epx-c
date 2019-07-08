@@ -610,6 +610,7 @@ void test_execution(){
         struct instance *is = cases[c].scc;
         for(ic = 0;ic < 4;ic++){
             if(is[ic].key.instance_id == 0) continue;
+            is[ic].r = &r;
             add_node(&exec, &is[ic]);
         }
         strong_connect(&exec);
