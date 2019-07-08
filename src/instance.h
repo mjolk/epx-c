@@ -13,7 +13,6 @@
 #define TIMEOUT_DISABLE_RELATIVE_ACCESS
 
 struct replica;
-struct instance_index;
 
 struct seq_deps_probe{
     int updated;
