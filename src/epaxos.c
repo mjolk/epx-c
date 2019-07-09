@@ -595,7 +595,7 @@ void* run(void* nio){
         {CHRECV, r.chan_propose[1], &m, MSG_SIZE} /** new io **/
     };
     timeout_init(&r.timer, 0);
-    struct instance tmp = {.r = &r};
+    struct instance tmp = {.r = &r};//TODO refactor this shit
     r.timer.interval = r.checkpoint<<N;
     timeout_setcb(&r.timer, checkpoint_timeout, &tmp);
     timeouts_add(r.timers, &r.timer, r.checkpoint<<N);
