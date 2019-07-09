@@ -60,9 +60,6 @@ int new_replica(struct replica *r){
     r->running = 0;
     int err = 0;
     r->timers = timeouts_open(TIMEOUT_mHZ, &err);
-    timeout_init(&r->timer, 0);
-    r->timer.interval = r->frequency<<N;
-    timeout_setcb(&r->timer, clear, r);
     if(err) goto error;
     if(chmake(r->chan_tick) != 0) goto error;
     if(chmake(r->chan_propose) !=0) goto error;

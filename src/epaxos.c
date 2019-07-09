@@ -533,18 +533,22 @@ void progress(struct replica *r, struct instance *i, struct message *m){
     }
 }
 
-void slow_path_timeout(struct instance *i) {
+void slow_path_timeout(struct instance *i){
     //struct message *nm = message_from_instance(t->instance);
-    struct message *nm = (struct message*)malloc(sizeof(struct message));
+    struct message *nm = (struct message*)calloc(1, sizeof(struct message));
     nm->type = PREPARE;
     recover(i->r, i, nm);
 }
 
-void fast_path_timeout(struct instance *i) {
+void fast_path_timeout(struct instance *i){
     struct message *m = message_from_instance(i);
     init_timeout(i);
     m->type = ACCEPT;
     send_io(i->r, m);
+}
+
+void checkpoint_timeout(struct instance *i){
+    checkpoint(i->r, NULL);
 }
 
 int step(struct replica *r, struct message *m) {
@@ -590,6 +594,11 @@ void* run(void* nio){
         {CHRECV, r.chan_ii[1], &m, MSG_SIZE},/** churn **/
         {CHRECV, r.chan_propose[1], &m, MSG_SIZE} /** new io **/
     };
+    timeout_init(&r.timer, 0);
+    struct instance tmp = {.r = &r};
+    r.timer.interval = r.checkpoint<<N;
+    timeout_setcb(&r.timer, checkpoint_timeout, &tmp);
+    timeouts_add(r.timers, &r.timer, r.checkpoint<<N);
     if(run_replica(&r) != 0) return 0;
     while(io->running && rc >= 0){
         rc = choose(cls, 3, -1);

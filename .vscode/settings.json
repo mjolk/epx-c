@@ -1,4 +1,5 @@
 {
+    "workbench.tree.renderIndentGuides":"none",
     "cmake.configureOnOpen": true,
     "cmake.generator": "Ninja"
 }

@@ -13,7 +13,7 @@
 
 struct message *message_from_instance(struct instance *i){
     struct message *nm = (struct message*)malloc(sizeof(struct message));
-    if(!nm){ errno = ENOMEM; return 0;};
+    if(!nm){ errno = ENOMEM; return NULL;};
     nm->ballot = i->ballot;
     nm->command = i->command;
     nm->id = i->key;
@@ -23,20 +23,20 @@ struct message *message_from_instance(struct instance *i){
 }
 
 struct instance *instance_from_message(struct message *m){
-    struct instance *i = (struct instance*)malloc(sizeof(struct instance));
+    struct instance *i = (struct instance*)calloc(1, sizeof(struct instance));
     if(!i){ errno = ENOMEM; return 0;}
     i->ballot = m->ballot;
     i->seq = m->seq;
     i->status = NONE;
     i->command = m->command;
     i->deps_updated = 0;
-    i->lt = 0;
+    i->lt = NULL;
     return i;
 }
 
 struct instance *new_instance(){
-    struct instance *i = (struct instance*)malloc(sizeof(struct instance));
-    if(!i){ errno = ENOMEM; return 0;}
+    struct instance *i = (struct instance*)calloc(1, sizeof(struct instance));
+    if(!i){ errno = ENOMEM; return NULL;}
     i->ballot = 0;
     i->seq = 0;
     i->status = NONE;
