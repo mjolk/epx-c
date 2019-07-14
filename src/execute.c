@@ -6,7 +6,7 @@
  */
 
 #include <errno.h>
-#include "llrb-interval/slist.h"
+#include <sys/queue.h>
 #include "execute.h"
 #include "storage.h"
 
@@ -20,7 +20,7 @@ struct tarjan_node {
     int low_link;
     int on_stack;
     struct tarjan_node *deps[MAX_DEPS];
-    SLL_ENTRY(tarjan_node) next;
+    SLIST_ENTRY(tarjan_node) next;
 };
 
 int contains(scc *comp, struct tarjan_node *t){
@@ -59,7 +59,7 @@ int min(int n1, int n2){
     return (n1 < n2)?n1:n2;
 }
 
-SLL_HEAD(stack, tarjan_node);
+SLIST_HEAD(stack, tarjan_node);
 KHASH_MAP_INIT_INT64(vertices, struct tarjan_node*);
 
 struct executor {
@@ -76,23 +76,23 @@ void reset_exec(struct executor *e){
     e->scc_count = 0;
     memset(e->sccs, 0, sizeof(scc)*MAX_DEPS);
     memset(e->executed, 0, sizeof(struct instance*)*MAX_DEPS);
-    SLL_INIT(&e->stack);
+    SLIST_INIT(&e->stack);
     e->index = 0;
 }
 
 void new_executor(struct executor *e){
     e->vertices = kh_init(vertices);
-    SLL_INIT(&e->stack);
+    SLIST_INIT(&e->stack);
 }
 
 struct tarjan_node *pop(struct executor *e){
-    struct tarjan_node *ret = SLL_FIRST(&e->stack);
-    if(ret) SLL_REMOVE_HEAD(&e->stack, next);
+    struct tarjan_node *ret = SLIST_FIRST(&e->stack);
+    if(ret) SLIST_REMOVE_HEAD(&e->stack, next);
     return ret;
 }
 
 void push(struct executor *e, struct tarjan_node *tn){
-    SLL_INSERT_HEAD(&e->stack, tn, next);
+    SLIST_INSERT_HEAD(&e->stack, tn, next);
 }
 
 void visit(struct executor *e, struct tarjan_node *n){

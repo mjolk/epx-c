@@ -5,10 +5,10 @@
  * Date   : ma 11 feb 2019 12:17
  */
 
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <stdio.h>
 #include "io.h"
-#include "llrb-interval/slist.h"
 #include "llrb-interval/llrb-interval.h"
 
 int is_conn_status(
@@ -32,7 +32,7 @@ int rspcmp(struct registered_span *sp1, struct registered_span *sp2){
     return strcmp(sp1->start_key, sp2->start_key);
 }
 
-SLL_HEAD(client_group, registered_span);
+SLIST_HEAD(client_group, registered_span);
 LLRB_GENERATE(client_index, registered_span, entry, rspcmp);
 LLRB_RANGE_GROUP_GEN(client_index, registered_span, entry, client_group, next);
 
@@ -42,13 +42,13 @@ void merge_clients(
     struct client_group *sll
 ){
     struct registered_span *c, *prev, *nxt;
-    nxt = SLL_FIRST(sll);
-    SLL_INSERT_HEAD(sll, to_merge, next);
+    nxt = SLIST_FIRST(sll);
+    SLIST_INSERT_HEAD(sll, to_merge, next);
     if(!nxt) return;
-    prev = SLL_FIRST(sll);
+    prev = SLIST_FIRST(sll);
     while(nxt) {
         c = nxt;
-        nxt = SLL_NEXT(nxt, next);
+        nxt = SLIST_NEXT(nxt, next);
         if((strcmp(to_merge->start_key, c->end_key) <= 0) &&
             (strcmp(to_merge->end_key, c->start_key) >= 0)){
             if((strcmp(to_merge->start_key, c->start_key) > 0)){
@@ -66,7 +66,7 @@ void merge_clients(
                     }
                 }
             }
-            SLL_REMOVE_AFTER(prev, next);
+            SLIST_REMOVE_AFTER(prev, next);
             LLRB_DELETE(client_index, ci, c);
         }else{
             prev = c;
@@ -79,7 +79,7 @@ void find_clients(
     struct registered_span *to_merge,
     struct client_group *sll
 ){
-    SLL_INSERT_HEAD(sll, to_merge, next);
+    SLIST_INSERT_HEAD(sll, to_merge, next);
 }
 
 void writer(struct connection*);
@@ -132,19 +132,20 @@ void fd_closer(int fd){
 }
 
 void destroy_client_connection(struct connection *c){
+    hclose(c->ap);
     hclose(c->handle);
-    hclose(c->prot_handle);
+    tcp_close(c->prot_handle, 20);
     hclose(c->client.chan[0]);
     hclose(c->client.chan[1]);
-    hclose(c->ap);
     set_conn_status(c, DEAD);
-    if(c->fd > 0) fd_closer(c->fd);
+    if(c->fd > 0) fd_closer(c->fd);//needed?
     free(c);
 }
 
-void destroy_node_connection(struct connection *c){
+void destroy_node_connection(void *vc){
+    struct connection *c = (struct connection*)vc;
     hclose(c->handle);
-    hclose(c->prot_handle);
+    tcp_close(c->prot_handle, 20);
     hclose(c->ap);
     set_conn_status(c, DEAD);
     if(c->fd > 0) fd_closer(c->fd);
@@ -203,6 +204,7 @@ int new_node_connection(struct connection *c){
 }
 
 void* try_connect(void *conn){
+    pthread_cleanup_push(destroy_node_connection, conn);
     struct connection *c = (struct connection*)conn;
     int tries = 0;
     int reconnect = 3;
@@ -217,12 +219,8 @@ void* try_connect(void *conn){
         c->back_off = 2;
         c->latency = 0;
         bundle_wait(c->ap, -1);
-        reconnect = 0;
     } while(tries < reconnect);
-    if(reconnect == 3){
-        c->back_off *= 3;
-    }
-    destroy_node_connection(c);
+    pthread_cleanup_pop(1);
     pthread_exit(NULL);
     return 0;
 }
@@ -246,8 +244,8 @@ struct connection* get_conn(struct node_io *n, const struct ipaddr *addr){
 int node_connect(struct node_io *n, struct ipaddr *addr, int fd){
     struct connection *c = get_conn(n, addr);
     if(!c) return -1;
+    //incoming 
     if(!is_conn_status(c, DEAD)){
-        destroy_node_connection(c);
         pthread_cancel(c->tid);
     }
     set_conn_status(c, CONNECTING);
@@ -329,10 +327,8 @@ ssize_t read_message(struct connection *c, struct message *m){
     if(s <= 0){
         free(m->command);
         free(m);
-        set_conn_status(c, DEAD);
         return -1;
     }
-    m->ref = 1;
     return s;
 }
 
@@ -372,12 +368,14 @@ coroutine void writer(struct connection *c){
         struct message *rcv = new_message();
         if(!rcv) return;
         ssize_t s = read_message(c, rcv);
+        int is_client = c->client.expires != 0;
         if(s <= 0){
             //yield();
+            //if(!is_client) pthread_exit(NULL);
             return;
         }
         rcv->from = c->xreplica_id;
-        if(c->client.expires != 0){
+        if(is_client){
             struct registered_span rsps[TX_SIZE];
             for(size_t i = 0;i < rcv->command->tx_size;i++){
                 if(empty_range(&rcv->command->spans[i])) break;
@@ -404,21 +402,19 @@ coroutine void reader(struct connection *c){
             continue;
         }
         if(write_message(c, m)){
+            //if(c->client.expires == 0) pthread_exit(NULL);
             return;
         }
     }
 }
 
 int connection_write(struct node_io *n, struct message *m){
-    int ret = 0;
+    if(!chan_send_spsc(&n->chan_nodes[m->to].chan_read, m)) return -1;
+    //only try and reconnect if dead
     if(is_conn_status(&n->chan_nodes[m->to], DEAD)){
         node_connect(n, &n->chan_nodes[m->to].addr, 0);
-        return 0;//hmmm
     }
-    if(!chan_send_spsc(&n->chan_nodes[m->to].chan_read, m)){
-        ret = -1;
-    }
-    return ret;
+    return 0;
 }
 
 int broadcast_prepare(struct node_io *n, struct message *m){
@@ -525,7 +521,7 @@ coroutine void eo_reader(struct node_io *n){
             LLRB_RANGE_GROUP_FIND(client_index, &n->clients,
                 &rsp, &cg, find_clients);
             struct registered_span *rspf;
-            SLL_FOREACH(rspf, &cg, next){
+            SLIST_FOREACH(rspf, &cg, next){
                 int no_active_clients = 1;
                 for(int j = 0;j < MAX_CLIENTS; j++){
                     if(rspf->clients[j].expires > now()){
@@ -553,9 +549,6 @@ void* client_handler(void* nio){
     if(bundle_go(n->ap_client, client_listener(n)) != 0) goto error;
     if(bundle_go(n->ap_client, eo_reader(n)) != 0) goto error;
     bundle_wait(n->ap_client, -1);
-    hclose(n->ap_client);
-    hclose(n->client_listener);
-    pthread_exit(NULL);
 error:
     pthread_exit(NULL);
 }
@@ -580,15 +573,12 @@ error:
 void stop_io(struct node_io *n){
     n->running = 0;
     hclose(n->ap);
-    hclose(n->ap_client);
     hclose(n->node_listener);
-    hclose(n->client_listener);
     for(size_t i = 0;i < N;i++){
-        if(n->chan_nodes[i].status == ALIVE){
-            hclose(n->chan_nodes[i].ap);
-            hclose(n->chan_nodes[i].handle);
-            tcp_close(n->chan_nodes[i].prot_handle, -1);
+        if(n->chan_nodes[i].status != DEAD){
+            pthread_cancel(n->chan_nodes[i].tid);
         }
     }
+    pthread_cancel(n->c_tid);
     LLRB_DESTROY(client_index, &n->clients, destroy_rsp);
 }
