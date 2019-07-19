@@ -371,7 +371,7 @@ coroutine void writer(struct connection *c){
         int is_client = c->client.expires != 0;
         if(s <= 0){
             //yield();
-            //if(!is_client) pthread_exit(NULL);
+            if(!is_client) pthread_exit(NULL);
             return;
         }
         rcv->from = c->xreplica_id;
@@ -402,7 +402,7 @@ coroutine void reader(struct connection *c){
             continue;
         }
         if(write_message(c, m)){
-            //if(c->client.expires == 0) pthread_exit(NULL);
+            if(c->client.expires == 0) pthread_exit(NULL);
             return;
         }
     }
