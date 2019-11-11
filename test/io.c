@@ -97,7 +97,7 @@ coroutine void check_step(struct node_io *io){
 void test_create(){
     struct node_io io;
     assert(start_io(&io) == 0);
-    //sleep(1);
+    sleep(1);
     stop_io(&io);
 }
 

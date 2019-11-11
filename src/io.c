@@ -133,7 +133,7 @@ void fd_closer(int fd){
 
 void destroy_client_connection(struct connection *c){
     hclose(c->handle);
-    hclose(c->prot_handle);
+    tcp_close(c->prot_handle, 20);
     hclose(c->client.chan[0]);
     hclose(c->client.chan[1]);
     hclose(c->ap);
@@ -389,7 +389,6 @@ coroutine void writer(struct connection *c){
         }
         if(!chan_send_mpsc(c->chan_write, rcv)) {
             msleep(now() + 200);//TODO log lost messages. or keep trying to send
-            continue;
         }
     }
 }
@@ -539,6 +538,8 @@ coroutine void eo_reader(struct node_io *n){
             }
         }
     }
+    hclose(n->client_listener);
+    hclose(n->ap_client);
 }
 
 void destroy_rsp(struct registered_span *rsp){
@@ -553,8 +554,6 @@ void* client_handler(void* nio){
     if(bundle_go(n->ap_client, client_listener(n)) != 0) goto error;
     if(bundle_go(n->ap_client, eo_reader(n)) != 0) goto error;
     bundle_wait(n->ap_client, -1);
-    hclose(n->ap_client);
-    hclose(n->client_listener);
     pthread_exit(NULL);
 error:
     pthread_exit(NULL);
@@ -580,15 +579,6 @@ error:
 void stop_io(struct node_io *n){
     n->running = 0;
     hclose(n->ap);
-    hclose(n->ap_client);
     hclose(n->node_listener);
-    hclose(n->client_listener);
-    for(size_t i = 0;i < N;i++){
-        if(n->chan_nodes[i].status == ALIVE){
-            hclose(n->chan_nodes[i].ap);
-            hclose(n->chan_nodes[i].handle);
-            tcp_close(n->chan_nodes[i].prot_handle, -1);
-        }
-    }
     LLRB_DESTROY(client_index, &n->clients, destroy_rsp);
 }
