@@ -368,7 +368,7 @@ struct message* new_message(){
 
 coroutine void writer(struct connection *c){
     int rc = 0;
-    while(is_conn_status(c, ALIVE)){
+    while(c->status == ALIVE){
         struct message *rcv = new_message();
         if(!rcv) return;
         ssize_t s = read_message(c, rcv);
@@ -396,7 +396,7 @@ coroutine void writer(struct connection *c){
 coroutine void reader(struct connection *c){
     int rc = 0;
     struct message *m;
-    while(is_conn_status(c, ALIVE)){
+    while(c->status == ALIVE){
         if(!chan_recv_spsc(&c->chan_read, &m)){
             //yield();
             msleep(now() + 60);
@@ -516,6 +516,8 @@ coroutine void eo_reader(struct node_io *n){
         }
         m->ref = 1;
         struct client_group cg;
+        int no_active_clients = 1;
+        struct registered_span *rspf;
         for(size_t i = 0;i < m->command->tx_size;i++){
             if(empty_range(&m->command->spans[i])) break;
             struct registered_span rsp;
@@ -523,9 +525,9 @@ coroutine void eo_reader(struct node_io *n){
             strcpy(rsp.end_key, m->command->spans[i].end_key);
             LLRB_RANGE_GROUP_FIND(client_index, &n->clients,
                 &rsp, &cg, find_clients);
-            struct registered_span *rspf;
+            rspf = NULL;
             SLL_FOREACH(rspf, &cg, next){
-                int no_active_clients = 1;
+                no_active_clients = 1;
                 for(int j = 0;j < MAX_CLIENTS; j++){
                     if(rspf->clients[j].expires > now()){
                         no_active_clients = 0;
