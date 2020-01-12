@@ -9,7 +9,7 @@
 #include <ck_pr.h>
 #include "message.h"
 
-void instance_data_from_buffer(struct message *m, const void *buffer){
+static void instance_data_from_buffer(struct message *m, const void *buffer){
     if(buffer == 0){
         return;
     }
@@ -68,7 +68,7 @@ error:
     return 1;
 }
 
-epx_instance_data_ref_t instance_data_to_buffer(struct message *m,
+static epx_instance_data_ref_t instance_data_to_buffer(struct message *m,
         flatcc_builder_t *b){
     ns(instance_data_start(b));
     if(m->command){
@@ -88,7 +88,7 @@ epx_instance_data_ref_t instance_data_to_buffer(struct message *m,
 }
 
 void message_to_buffer(void *im, flatcc_builder_t *b){
-    struct message *m = (struct message*)im; 
+    struct message *m = (struct message*)im;
     ns(message_start_as_root(b));
     ns(message_to_add(b, m->to));
     ns(message_from_add(b, m->from));

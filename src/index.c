@@ -7,8 +7,8 @@
 
 #include <stdio.h>
 #include <inttypes.h>
+#include <sys/queue.h>
 #include "index.h"
-#include "llrb-interval/slist.h"
 #include "llrb-interval/llrb-interval.h"
 
 int spcmp(struct span *sp1, struct span *sp2){
@@ -17,19 +17,19 @@ int spcmp(struct span *sp1, struct span *sp2){
 
 LLRB_HEAD(span_tree, span);
 LLRB_PROTOTYPE(span_tree, span, entry, spcmp)
-SLL_HEAD(span_group, span);
+SLIST_HEAD(span_group, span);
 LLRB_GENERATE(span_tree, span, entry, spcmp);
 LLRB_RANGE_GROUP_GEN(span_tree, span, entry, span_group, next);
 
 void merge(struct span_tree *rt, struct span *to_merge, struct span_group *sll){
     struct span *c, *prev, *next;
-    next = SLL_FIRST(sll);
-    SLL_INSERT_HEAD(sll, to_merge, next);
+    next = SLIST_FIRST(sll);
+    SLIST_INSERT_HEAD(sll, to_merge, next);
     if(!next) return;
-    prev = SLL_FIRST(sll);
+    prev = SLIST_FIRST(sll);
     while(next) {
         c = next;
-        next = SLL_NEXT(next, next);
+        next = SLIST_NEXT(next, next);
         if(overlaps(to_merge, c)){
             if((strcmp(to_merge->start_key, c->start_key) > 0)){
                 strcpy(to_merge->start_key, c->start_key);
@@ -37,7 +37,7 @@ void merge(struct span_tree *rt, struct span *to_merge, struct span_group *sll){
             if(strcmp(to_merge->end_key, c->end_key) < 0) {
                 strcpy(to_merge->end_key, c->end_key);
             }
-            SLL_REMOVE_AFTER(prev, next);
+            SLIST_REMOVE_AFTER(prev, next);
             LLRB_DELETE(span_tree, rt, c);
         }else{
             prev = c;
@@ -134,7 +134,7 @@ void noop_dep(struct instance_index *index, struct instance_id *id,
 
 void clear_index(struct instance_index *index){
     struct instance *c, *nxt, *executed;
-    executed = 0;
+    executed = NULL;
     nxt = LLRB_MIN(instance_index, index);
     while(nxt){
         c = nxt;
