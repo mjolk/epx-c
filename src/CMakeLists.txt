@@ -1,6 +1,6 @@
 #debug flags
 set(CMAKE_C_FLAGS_DEBUG
-    "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -Werror -Wno-long-long -Wno-variadic-macros -fexceptions")
+    "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -Werror -Wno-long-long -Wno-variadic-macros -fexceptions -march=native")
 
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
     message("debug mode")

@@ -1,6 +1,7 @@
 build
 .vimrc
 .gitmodules
+.clangd
 *.swp
 .tags
 *.vim
