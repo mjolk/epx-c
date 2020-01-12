@@ -543,12 +543,20 @@ void destroy_rsp(struct registered_span *rsp){
     }
 }
 
+void destroy_client_handler(void* nio) {
+    struct node_io *n = (struct node_io*)nio;
+    printf("deleting client handler %d\n", n->ap_client);
+    hclose(n->ap_client);
+}
+
 void* client_handler(void* nio){
     struct node_io *n = (struct node_io*)nio;
+    pthread_cleanup_push(destroy_client_handler, n);
     n->ap_client = bundle();
     if(bundle_go(n->ap_client, client_listener(n)) != 0) goto error;
     if(bundle_go(n->ap_client, eo_reader(n)) != 0) goto error;
     bundle_wait(n->ap_client, -1);
+    pthread_cleanup_pop(1);
 error:
     pthread_exit(NULL);
 }
@@ -572,6 +580,7 @@ error:
 
 void stop_io(struct node_io *n){
     n->running = 0;
+    pthread_cancel(n->c_tid);
     hclose(n->ap);
     hclose(n->node_listener);
     for(size_t i = 0;i < N;i++){
@@ -579,6 +588,5 @@ void stop_io(struct node_io *n){
             pthread_cancel(n->chan_nodes[i].tid);
         }
     }
-    pthread_cancel(n->c_tid);
     LLRB_DESTROY(client_index, &n->clients, destroy_rsp);
 }
