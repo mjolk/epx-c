@@ -7,7 +7,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
-#include <sys/queue.h>
+#include "queue.h"
 #include "index.h"
 #include "llrb-interval/llrb-interval.h"
 

@@ -5,7 +5,8 @@
  * Date   : ma 11 feb 2019 12:17
  */
 
-#include <sys/queue.h>
+#include "queue.h"
+#include <pthread.h>
 #include <sys/socket.h>
 #include <stdio.h>
 #include "io.h"
@@ -144,9 +145,9 @@ void destroy_client_connection(struct connection *c){
 
 void destroy_node_connection(void *vc){
     struct connection *c = (struct connection*)vc;
-    hclose(c->handle);
+    //hclose(c->ap);
+    //hclose(c->handle);
     tcp_close(c->prot_handle, 20);
-    hclose(c->ap);
     set_conn_status(c, DEAD);
     if(c->fd > 0) fd_closer(c->fd);
 }
@@ -244,14 +245,14 @@ struct connection* get_conn(struct node_io *n, const struct ipaddr *addr){
 int node_connect(struct node_io *n, struct ipaddr *addr, int fd){
     struct connection *c = get_conn(n, addr);
     if(!c) return -1;
-    //incoming 
+    //incoming
     if(!is_conn_status(c, DEAD)){
         pthread_cancel(c->tid);
     }
     set_conn_status(c, CONNECTING);
     c->n = n;
     c->fd = fd;
-    return pthread_create(&c->tid, &n->tattr, try_connect, c);
+    return pthread_create(&c->tid, NULL/*&n->tattr*/, try_connect, c);
 }
 
 coroutine void node_listener(struct node_io *n){
@@ -512,8 +513,8 @@ coroutine void eo_reader(struct node_io *n){
         }
         m->ref = 1;
         struct client_group cg;
-        int no_active_clients = 1;
         struct registered_span *rspf;
+        int no_active_clients = 1;
         for(size_t i = 0;i < m->command->tx_size;i++){
             if(empty_range(&m->command->spans[i])) break;
             struct registered_span rsp;
@@ -521,9 +522,8 @@ coroutine void eo_reader(struct node_io *n){
             strcpy(rsp.end_key, m->command->spans[i].end_key);
             LLRB_RANGE_GROUP_FIND(client_index, &n->clients,
                 &rsp, &cg, find_clients);
-            struct registered_span *rspf;
             SLIST_FOREACH(rspf, &cg, next){
-                int no_active_clients = 1;
+                no_active_clients = 1;
                 for(int j = 0;j < MAX_CLIENTS; j++){
                     if(rspf->clients[j].expires > now()){
                         no_active_clients = 0;
@@ -549,7 +549,7 @@ void destroy_rsp(struct registered_span *rsp){
 void destroy_client_handler(void* nio) {
     struct node_io *n = (struct node_io*)nio;
     printf("deleting client handler %d\n", n->ap_client);
-    hclose(n->ap_client);
+    //hclose(n->ap_client);
 }
 
 void* client_handler(void* nio){
@@ -569,10 +569,10 @@ int start_io(struct node_io *n){
     LLRB_INIT(&n->clients);
     n->ap = bundle();
     if(n->ap < 0) goto error;
-    if(set_pthread_attr(n) != 0) goto error;
+    //if(set_pthread_attr(n) != 0) goto error;
     if(bundle_go(n->ap, io_reader(n)) != 0) goto error;
     if(bundle_go(n->ap, node_listener(n)) != 0) goto error;
-    if(pthread_create(&n->c_tid, &n->tattr, client_handler, n) != 0) goto error;
+    if(pthread_create(&n->c_tid, NULL/*&n->tattr*/, client_handler, n) != 0) goto error;
     return 0;
 error:
     n->running = 0;
@@ -583,13 +583,16 @@ error:
 
 void stop_io(struct node_io *n){
     n->running = 0;
-    pthread_cancel(n->c_tid);
+    void *res;
     hclose(n->ap);
     hclose(n->node_listener);
     for(size_t i = 0;i < N;i++){
         if(n->chan_nodes[i].status != DEAD){
             pthread_cancel(n->chan_nodes[i].tid);
+            pthread_join(n->chan_nodes[i].tid, &res);
         }
     }
+    pthread_cancel(n->c_tid);
+    pthread_join(n->c_tid, &res);
     LLRB_DESTROY(client_index, &n->clients, destroy_rsp);
 }

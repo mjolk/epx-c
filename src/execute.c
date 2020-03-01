@@ -6,7 +6,7 @@
  */
 
 #include <errno.h>
-#include <sys/queue.h>
+#include "queue.h"
 #include "execute.h"
 #include "storage.h"
 

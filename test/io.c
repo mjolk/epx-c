@@ -97,12 +97,7 @@ coroutine void check_step(struct node_io *io){
 void test_create(){
     struct node_io io;
     assert(start_io(&io) == 0);
-<<<<<<< HEAD
-    sleep(1);
-||||||| 4e4562b
     //sleep(1);
-=======
->>>>>>> osx-dev
     stop_io(&io);
 }
 
@@ -155,7 +150,7 @@ void test_node(){
 
 int main(){
     //test_create();
-    test_client();
+    //test_client();
     test_node();
     return 0;
 }
