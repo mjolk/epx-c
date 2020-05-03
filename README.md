@@ -1,8 +1,7 @@
 ### epx-c WIP
 
-key/value store using Egalitarian paxos
-works with range subscriptions.
-Clients can set watches on key ranges and receive updates via persistent (web)socket connection.
+distributed(epaxos) real-time key/value store
+clients set watches on key ranges and receive updates via persistent (web)socket connection.
 ¯\\_(ツ)_/¯
 
 #### to compile you need:
