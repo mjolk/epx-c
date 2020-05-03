@@ -145,8 +145,8 @@ void destroy_client_connection(struct connection *c){
 
 void destroy_node_connection(void *vc){
     struct connection *c = (struct connection*)vc;
-    //hclose(c->ap);
-    //hclose(c->handle);
+    hclose(c->ap);
+    hclose(c->handle);
     tcp_close(c->prot_handle, 20);
     set_conn_status(c, DEAD);
     if(c->fd > 0) fd_closer(c->fd);
@@ -205,7 +205,6 @@ int new_node_connection(struct connection *c){
 }
 
 void* try_connect(void *conn){
-    pthread_cleanup_push(destroy_node_connection, conn);
     struct connection *c = (struct connection*)conn;
     int tries = 0;
     int reconnect = 3;
@@ -220,8 +219,8 @@ void* try_connect(void *conn){
         c->back_off = 2;
         c->latency = 0;
         bundle_wait(c->ap, -1);
+        reconnect = 0;
     } while(tries < reconnect);
-    pthread_cleanup_pop(1);
     pthread_exit(NULL);
     return 0;
 }
@@ -338,18 +337,20 @@ int empty_rrange(struct registered_span *rsp){
     return 0;
 }
 
-void register_client(struct registered_span rsps[], struct node_io *n){
+void register_client(struct span sp, struct connection *c){
     struct client_group cg;
-    for(int i = 0;i < TX_SIZE;i++){
-        if(empty_rrange(&rsps[i])) break;
-        if(LLRB_RANGE_GROUP_ADD(client_index, &n->clients,
-            &rsps[i], &cg, merge_clients)){
-                struct registered_span *rsp = (struct registered_span*)malloc(
-                    sizeof(struct registered_span)
-                );
-                *rsp = rsps[i];
-                LLRB_INSERT(client_index, &n->clients, rsp);
-        }
+    struct registered_span crsp;
+    strcpy(crsp.start_key, sp.start_key);
+    strcpy(crsp.end_key, sp.end_key);
+    crsp.clients[0] = c->client;
+    if(LLRB_RANGE_GROUP_ADD(client_index, &c->n->clients,
+        &crsp, &cg, merge_clients)){
+            struct registered_span *rsp = (struct registered_span*)malloc(
+                sizeof(struct registered_span)
+            );
+            *rsp = crsp;
+            rsp->clients[0] = c->client;
+            LLRB_INSERT(client_index, &c->n->clients, rsp);
     }
 }
 
@@ -377,14 +378,10 @@ coroutine void writer(struct connection *c){
         }
         rcv->from = c->xreplica_id;
         if(is_client){
-            struct registered_span rsps[TX_SIZE];
             for(size_t i = 0;i < rcv->command->tx_size;i++){
                 if(empty_range(&rcv->command->spans[i])) break;
-                strcpy(rsps[i].start_key, rcv->command->spans[i].start_key);
-                strcpy(rsps[i].end_key, rcv->command->spans[i].end_key);
-                rsps[i].clients[0] = c->client;
+                register_client(rcv->command->spans[i], c);
             }
-            register_client(rsps, c->n);
         }
         if(!chan_send_mpsc(c->chan_write, rcv)) {
             msleep(now() + 200);//TODO log lost messages. or keep trying to send
@@ -536,8 +533,6 @@ coroutine void eo_reader(struct node_io *n){
             }
         }
     }
-    hclose(n->client_listener);
-    hclose(n->ap_client);
 }
 
 void destroy_rsp(struct registered_span *rsp){
@@ -546,20 +541,13 @@ void destroy_rsp(struct registered_span *rsp){
     }
 }
 
-void destroy_client_handler(void* nio) {
-    struct node_io *n = (struct node_io*)nio;
-    printf("deleting client handler %d\n", n->ap_client);
-    //hclose(n->ap_client);
-}
-
 void* client_handler(void* nio){
     struct node_io *n = (struct node_io*)nio;
-    pthread_cleanup_push(destroy_client_handler, n);
     n->ap_client = bundle();
     if(bundle_go(n->ap_client, client_listener(n)) != 0) goto error;
     if(bundle_go(n->ap_client, eo_reader(n)) != 0) goto error;
     bundle_wait(n->ap_client, -1);
-    pthread_cleanup_pop(1);
+    pthread_exit(NULL);
 error:
     pthread_exit(NULL);
 }
@@ -586,13 +574,16 @@ void stop_io(struct node_io *n){
     void *res;
     hclose(n->ap);
     hclose(n->node_listener);
+    hclose(n->client_listener);
+    hclose(n->ap_client);
     for(size_t i = 0;i < N;i++){
         if(n->chan_nodes[i].status != DEAD){
-            pthread_cancel(n->chan_nodes[i].tid);
-            pthread_join(n->chan_nodes[i].tid, &res);
+            //pthread_cancel(n->chan_nodes[i].tid);
+            destroy_node_connection(&n->chan_nodes[i]);
+            //pthread_join(n->chan_nodes[i].tid, &res);
         }
     }
-    pthread_cancel(n->c_tid);
-    pthread_join(n->c_tid, &res);
+    //pthread_cancel(n->c_tid);
+    //pthread_join(n->c_tid, &res);
     LLRB_DESTROY(client_index, &n->clients, destroy_rsp);
 }
