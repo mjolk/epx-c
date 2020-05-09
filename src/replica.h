@@ -50,4 +50,14 @@ int run_replica(struct replica*);
 void noop(struct replica*, struct instance_id*, struct dependency*);
 void barrier(struct replica*, struct dependency*);
 void clear(struct replica*);
+void fast_path_timeout(struct instance*);
+void slow_path_timeout(struct instance*);
+void init_fp_timeout(struct instance*);
+void init_timeout(struct instance*);
+uint64_t dh_key(struct instance_id*);
+struct instance* find_conflict(struct replica*, struct instance*,
+    struct command*, uint64_t, struct dependency*);
+struct leader_tracker *new_tracker();
+void cancel_timeout(struct instance*);
+
 #endif

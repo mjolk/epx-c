@@ -8,6 +8,45 @@
 #include "replica.h"
 #include <stdio.h>
 
+struct instance* find_conflict(struct replica *r, struct instance *i,
+    struct command *c, uint64_t seq, struct dependency *deps){
+    if(i->command){
+        if(i->status >= ACCEPTED){
+            return i;
+        } else if(i->seq == seq && equal_deps(i->deps, deps)){
+            return 0;
+        }
+    }
+    return pac_conflict(r, i, c, seq, deps);
+}
+
+struct leader_tracker *new_tracker(){
+    struct leader_tracker *lt = (struct leader_tracker*)calloc(1,
+        sizeof(struct leader_tracker));
+    if(!lt){ errno = ENOMEM; return 0;}
+    lt->ri.status = NONE;
+    lt->recovery_status = NONE;
+    return lt;
+}
+
+uint64_t dh_key(struct instance_id *id){
+    return (id->instance_id << 16) | id->replica_id;
+}
+
+void cancel_timeout(struct instance *i){
+    timeouts_del(i->r->timers, &i->timer);
+}
+
+void init_fp_timeout(struct instance *i){
+    timeout_setcb(&i->timer, fast_path_timeout, i);
+    timeouts_add(i->r->timers, &i->timer, 20);
+}
+
+void init_timeout(struct instance *i){
+    timeout_setcb(&i->timer, slow_path_timeout, i);
+    timeouts_add(i->r->timers, &i->timer, 20);
+}
+
 coroutine void tcl(struct replica *r){
     uint8_t t = 1;
     while(r->running){

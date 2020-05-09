@@ -9,4 +9,3 @@
 #include "io.h"
 
 void* run(void*);
-uint64_t dh_key(struct instance_id*);
