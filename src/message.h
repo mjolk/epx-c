@@ -19,7 +19,7 @@ enum state {
     TRY_PRE_ACCEPTING = 0x20,
     COMMITTED = 0x40,
     EXECUTED = 0x80
-} state;
+};
 
 
 enum message_type {

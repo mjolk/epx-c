@@ -19,7 +19,7 @@ struct nxt {
     struct span *sle_next;
 };
 
-struct range_group *merge_list;
+//struct range_group *merge_list;
 
 struct span {
     LLRB_ENTRY(span) entry;
