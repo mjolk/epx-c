@@ -11,7 +11,28 @@ int triggered[5] = {0};
 
 void timeout_callback(void *arg){
     int id = *(int*) arg;
+    printf("callback %d\t", id);
+    assert(id == 1);
     triggered[id] = 1;
+    free(arg);
+}
+
+void test_simple_timeout(struct replica *r) {
+    struct instance i = {
+        .key = {
+            .replica_id = 0,
+            .instance_id = 1
+        }
+    };
+    timeout_init(&i.timer, 0);
+    int *ic  = (int*)malloc(sizeof(int));
+    assert(ic != 0);
+    *ic = 1;
+    timeout_setcb(&i.timer, timeout_callback, ic);
+    timeouts_add(r->timers, &i.timer, 2);
+    tick(r);
+    tick(r);
+
 }
 
 int main(){
@@ -23,16 +44,7 @@ int main(){
     r.frequency = 10;
     r.id = 1;
     assert(new_replica(&r) == 0);
-    struct instance i = {
-        .key = {
-            .replica_id = 0,
-            .instance_id = 1
-        }
-    };
-    timeout_init(&i.timer, 0);
-    timeout_setcb(&i.timer, timeout_callback, 0);
-    timeouts_add(r.timers, &i.timer, 20);
-    //run_replica(&r);
+    test_simple_timeout(&r);
     //destroy_replica(&r);
     return 0;
 }

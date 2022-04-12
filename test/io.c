@@ -79,7 +79,7 @@ coroutine void test_node_client(struct connection *conn){
 coroutine void check_propose(struct node_io *io){
     struct message *m;
     while(!chan_recv_mpsc(&io->sync.chan_propose, &m)){
-        msleep(now() + 500);
+        msleep(now() + 10);
         continue;
     }
     assert(strcmp(m->command->spans[0].start_key, "ab") == 0);
@@ -88,7 +88,7 @@ coroutine void check_propose(struct node_io *io){
 coroutine void check_step(struct node_io *io){
     struct message *m;
     while(!chan_recv_mpsc(&io->sync.chan_step, &m)){
-        msleep(now() + 500);
+        msleep(now() + 10);
         continue;
     }
     assert(strcmp(m->command->spans[0].start_key, "ef") == 0);
